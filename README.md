@@ -19,3 +19,6 @@ D. Kyle Miller replicate a baseline model and publis his code at [github repo](h
       ![img_3.png](screenshots/img_3.png)
     - OLS-H
       ![img_1.png](screenshots/img_1.png)
+
+- hyperparameter tuning
+![img.png](screenshots/img4.png)
