@@ -1,16 +1,19 @@
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import GradientBoostingRegressor
-import xgboost as xgb
 import time
 from tqdm import tqdm
 import numpy as np
+import joblib
+import os
 import logging
+
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.model_selection import ParameterGrid
+import xgboost as xgb
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LeakyReLU, BatchNormalization, Dropout
 
-from utils_stra import setwd, cal_r2
+from utils_stra import setwd, cal_r2, gen_model_pt
 setwd()
 
 # create logger with 'spam_application'
@@ -21,6 +24,21 @@ fh = logging.FileHandler('records.log')
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 # %%
+def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT):
+    assert runRF + runGBRT == 1
+    model_pt = gen_model_pt(model_name, year)
+    if not os.path.exists(model_pt):
+        print(f"can't find trained model {model_name} {year}, retraining")
+        return tree_model(Xt, yt, Xv, yv, runRF, runGBRT)
+    else:
+        print(f"load model from {model_pt}")
+        if runRF:
+            tree_m = joblib.load(model_pt)
+        elif runGBRT:
+            tree_m = xgb.XGBRegressor()
+            tree_m.load_model(model_pt)
+        return tree_m
+
 def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
     assert runRF + runGBRT == 1
     if runRF:
@@ -29,7 +47,9 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
         max_features = [Xt.shape[1]//3]
         # max_depth = np.arange(1, 3)
         # max_features = [3, 5, 10]
-        params = [{'max_dep': i, 'max_fea': j} for i in max_depth for j in max_features]
+        param_grid = {'max_dep': max_depth,
+                      'max_fea':max_features}
+        params = list(ParameterGrid(param_grid))
     elif runGBRT:
         model_name = "Boosting Trees"
         # boosting params
@@ -38,14 +58,14 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
         # loss = ['huber']
         # cart tree params
         max_depth = [1, 2]
-        from sklearn.model_selection import ParameterGrid
         param_grid = {'num_trees': num_trees,
                       'max_dep': max_depth,
                       'lr':learning_rate}
         params = list(ParameterGrid(param_grid))
 
     tis = time.time()
-    out_cv = []
+    scores = []
+    model_list = []
     for p in tqdm(params):
         print(p)
         if runRF:
@@ -57,32 +77,31 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
                                       objective='reg:pseudohubererror', random_state=0, n_jobs=-1)
 
             tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
-                                      eval_set=[(Xv, yv.reshape(-1, ))], verbose=True)
+                                      eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
+            print(f"gbrt best iter {tree_m.best_iteration}   best score {tree_m.best_score}")
             # tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
             #                                    learning_rate=p['lr'],
             #                                    min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
             #                                    subsample=p['subsample'], random_state=0)
-
         yv_hat = tree_m.predict(Xv).reshape(-1, 1)
-        perfor = cal_r2(yv, yv_hat)
-        out_cv.append(perfor)
-        print('params: ' + str(p) + '. CV r2-validation:' + str(perfor))
-
+        score = cal_r2(yv, yv_hat)
+        print('params: ' + str(p) + '. CV r2-validation:' + str(score))
+        scores.append(score)
+        model_list.append(tree_m)
     tic = time.time()
     print(f"{model_name} train time: ", tic - tis)
 
-    best_p = params[np.argmax(out_cv)]
-    logger.critical('best params for rf: ' + str(best_p))
-
-    if runRF:
-        tree_m = RandomForestRegressor(n_estimators=300, max_depth=best_p['max_dep'], max_features=best_p['max_fea'],
-                                       min_samples_split=10, random_state=0, n_jobs=-1)
-    if runGBRT:
-        tree_m = GradientBoostingRegressor(max_depth=best_p['max_dep'], n_estimators=best_p['num_trees'],
-                                           learning_rate=best_p['lr'], max_features=best_p['max_dep'],
-                                           min_samples_split=10, loss=best_p['loss'], min_samples_leaf=10,
-                                           subsample=p['subsample'], random_state=0)
-    tree_m.fit(Xt, yt.reshape(-1, ))
+    best_p = params[np.argmax(scores)]
+    best_model = model_list[np.argmax(scores)]
+    logger.info('best params for rf: ' + str(best_p))
+    # if runRF:
+    #     tree_m = RandomForestRegressor(n_estimators=300, max_depth=best_p['max_dep'], max_features=best_p['max_fea'],
+    #                                    min_samples_split=10, random_state=0, n_jobs=-1)
+    # elif runGBRT:
+    #     tree_m = xgb.XGBRegressor(n_estimators=best_p['num_trees'], max_depth=best_p['max_dep'], learning_rate=best_p['lr'],
+    #                               objective='reg:pseudohubererror', random_state=0, n_jobs=-1)
+    # tree_m.fit(Xt, yt.reshape(-1, ))
+    tree_m = best_model
     return tree_m
 
 

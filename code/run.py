@@ -20,7 +20,8 @@ import joblib
 from utils_stra import split, cal_r2, cal_normal_r2, cal_model_r2
 from utils_stra import save_hat, save_res, save_year_res, stream, setwd
 from utils_stra import add_months, gen_model_pt, save_model
-from strategy_func import tree_model, genNNmodel, _loss_fn
+from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn
+
 
 setwd()
 # create logger with 'spam_application'
@@ -44,14 +45,8 @@ print(XX.shape)
 print(yy.shape)
 # %%
 runGPU = 1
-if runGPU:
-    device_name = tf.test.gpu_device_name()
-    if device_name != '/device:GPU:0':
-        if platform.system() == 'linus':
-            raise SystemError('GPU device not found')
-        else:
-            pass
-    print('Found GPU at: {}'.format(device_name))
+retrain = 0
+
 # train30% validation20% test50% split
 def intiConfig():
     config = {"runOLS3":0,
@@ -79,6 +74,15 @@ for config_key in config.keys():
     print(f"running model {config_key}")
     # data index should be ticker date
     runNN = sum([config[i] for i in [i for i in config.keys() if re.match("runNN[0-9]", i)]])
+    if runNN:
+        if runGPU:
+            device_name = tf.test.gpu_device_name()
+            if device_name != '/device:GPU:0':
+                if platform.system() == 'linus':
+                    raise SystemError('GPU device not found')
+                else:
+                    pass
+            print('Found GPU at: {}'.format(device_name))
 
     container = {}
     # for year in tqdm(range(2013, 2019)):
@@ -93,7 +97,6 @@ for config_key in config.keys():
         p_t = ['1900-01', str(year)] # period of training
         p_v = [add_months(year, 1), add_months(year, 3)] # period of valiation
         p_test = [add_months(year, 4), add_months(year, 4)]
-
 
         _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=0))
         _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=0))
@@ -286,42 +289,44 @@ for config_key in config.keys():
             nn_preds = []
             model_cntn = []
             for model_num in tqdm(range(10)):
-                tf.random.set_seed(model_num)
+                if retrain:
+                    tf.random.set_seed(model_num)
 
-                _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=model_num))
-                _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=model_num+1))
+                    _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=model_num))
+                    _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=model_num+1))
 
-                Xt, yt = _Xt, _yt
-                Xv, yv = _Xv, _yv
-                Xtest, ytest = _Xtest, _ytest
+                    Xt, yt = _Xt, _yt
+                    Xv, yv = _Xv, _yv
+                    Xtest, ytest = _Xtest, _ytest
 
+                    model_fit = genNNmodel(XX.shape[1], i, dropout=True)
+                    earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=33,
+                                                                 verbose=0, mode="min", baseline=None,
+                                                                 restore_best_weights=True)
+                    model_dir = Path("code", f"{model_name}")
+                    if not os.path.exists(model_dir):
+                        os.mkdir(model_dir)
+                    model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
 
-                model_fit = genNNmodel(XX.shape[1], i, dropout=True)
-                earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=33,
-                                                             verbose=0, mode="min", baseline=None,
-                                                             restore_best_weights=True)
-                model_dir = Path("code", f"{model_name}")
-                if not os.path.exists(model_dir):
-                    os.mkdir(model_dir)
-                model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
-
-                checkpoint = tf.keras.callbacks.ModelCheckpoint(model_pt, monitor='val_loss', verbose=0,
-                                                                save_best_only=True, mode='min')
-                cb_list = [earlystop, checkpoint]
-                loss_fn = _loss_fn
-                # loss_fn = tf.losses.MeanSquaredError()
-                opt = keras.optimizers.Adam(clipvalue=0.5)
-                if runGPU:
-                    with tf.device('/device:GPU:0'):
-                        print("running on GPU")
+                    checkpoint = tf.keras.callbacks.ModelCheckpoint(model_pt, monitor='val_loss', verbose=0,
+                                                                    save_best_only=True, mode='min')
+                    cb_list = [earlystop, checkpoint]
+                    loss_fn = _loss_fn
+                    # loss_fn = tf.losses.MeanSquaredError()
+                    opt = keras.optimizers.Adam(clipvalue=0.5)
+                    if runGPU:
+                        with tf.device('/device:GPU:0'):
+                            print("running on GPU")
+                            model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
+                            # fit the keras model on the dataset
+                            model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
+                                          callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
+                    else:
                         model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
-                        # fit the keras model on the dataset
-                        model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
+                        model_fit.fit(Xt, yt, epochs=2, batch_size=2560, verbose=1,
                                       callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
                 else:
-                    model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
-                    model_fit.fit(Xt, yt, epochs=2, batch_size=2560, verbose=1,
-                                  callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
+                    model_fit = 0
                 model_cntn.append(model_fit)
 
                 plt.plot(model_fit.history.history['loss'], label='train')
@@ -355,15 +360,20 @@ for config_key in config.keys():
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
-            model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False)
+            if not retrain:
+                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=True, runGBRT=False)
+            else:
+                model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False)
             save_model(model_name, year, model_fit)
-
         elif config['runGBRT']:
             model_name = "GBRT"
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
-            model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True)
+            if not retrain:
+                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=True)
+            else:
+                model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True)
             # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
             # The canonical way to save and restore models is by load_model and save_model.
             model_pt = gen_model_pt(model_name, year)
