@@ -86,7 +86,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
             #                                    subsample=p['subsample'], random_state=0)
         yv_hat = tree_m.predict(Xv).reshape(-1, 1)
         score = cal_r2(yv, yv_hat)
-        print('params: ' + str(p) + '. CV r2-validation:' + str(score))
+        print('params: ' + str(p) + '. CV r2-validation:' + "{0:.3%}".format(str(score)))
         scores.append(score)
         model_list.append(tree_m)
     tic = time.time()
@@ -106,11 +106,12 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
     return tree_m
 
 
-def genNNmodel(dim, layers_num, dropout=False):
-    if dropout:
-        # now add a ReLU layer explicitly:
+def genNNmodel(dim, layers_num):
+    assert layers_num in range(1, 7)
+    if layers_num<=5:
         layers_ = [
             Dropout(0.2),
+
             BatchNormalization(input_dim=dim),
             Dense(64),
             LeakyReLU(alpha=0.01),
@@ -136,25 +137,41 @@ def genNNmodel(dim, layers_num, dropout=False):
             LeakyReLU(alpha=0.01),
             Dropout(0.5),
         ]
+        layers_ = layers_[:1+4*layers_num].copy()
     elif layers_num == 6:
         layers_ = [
-        Dense(64, input_dim=dim, activation='relu'),
-        Dense(32, activation='relu'),
-        Dense(16, activation='relu'),
-        Dense(8, activation='relu'),
-        Dense(4, activation='relu'),
-        Dense(2, activation='relu')
-        ]
-    else:
-        layers_ = [
+            Dropout(0.2),
+
             BatchNormalization(input_dim=dim),
-            Dense(32, activation='relu'),
-            Dense(16, activation='relu'),
-            Dense(8, activation='relu'),
-            Dense(4, activation='relu'),
-            Dense(2, activation='relu')
+            Dense(128),
+            LeakyReLU(alpha=0.01),
+            Dropout(0.5),
+
+            BatchNormalization(input_dim=dim),
+            Dense(64),
+            LeakyReLU(alpha=0.01),
+            Dropout(0.5),
+
+            BatchNormalization(),
+            Dense(32),
+            LeakyReLU(alpha=0.01),
+            Dropout(0.5),
+
+            BatchNormalization(),
+            Dense(16),
+            LeakyReLU(alpha=0.01),
+            Dropout(0.5),
+
+            BatchNormalization(),
+            Dense(8),
+            LeakyReLU(alpha=0.01),
+            Dropout(0.5),
+
+            BatchNormalization(),
+            Dense(4),
+            LeakyReLU(alpha=0.01),
+            Dropout(0.5),
         ]
-        layers_ = layers_[:layers_num].copy()
 
     layers_.append(BatchNormalization())
     layers_.append(Dense(1, name="output_layer"))

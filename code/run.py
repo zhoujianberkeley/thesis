@@ -10,6 +10,7 @@ from sklearn.linear_model import HuberRegressor, LinearRegression
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+import pickle
 import re
 import time
 from tqdm import tqdm
@@ -19,7 +20,7 @@ import matplotlib.pyplot as plt
 import joblib
 
 from utils_stra import split, cal_r2, cal_normal_r2, cal_model_r2
-from utils_stra import save_hat, save_res, save_year_res, stream, setwd
+from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
 from utils_stra import add_months, gen_model_pt, save_model
 from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn
 
@@ -50,7 +51,7 @@ retrain = 0
 
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":0,
+    config = {"runOLS3":1,
               'runOLS3+H':0,
                 "runOLS":0,
                 "runOLSH":0,
@@ -63,7 +64,7 @@ def intiConfig():
                 "runNN4":0,
               "runNN5": 0,
               "runNN6": 0,
-              "runRF": 1,
+              "runRF": 0,
               "runGBRT": 0,
               }
     return config
@@ -134,7 +135,7 @@ for config_key in config.keys():
             Xt = np.vstack((_Xt, _Xv))
             yt = np.vstack((_yt, _yv))
             Xtest, ytest = _Xtest, _ytest
-            model_fit = LinearRegression(n_jobs=-1).fit(Xt, yt)
+            model_fit = LinearRegression(n_jobs=-1).fit(Xt, yt.reshape(-1, ))
 
         elif config['runOLSH']:  # OLS + H
             model_name = "OLSH"
@@ -150,7 +151,7 @@ for config_key in config.keys():
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
 
-            lambda_ = [0.1, 0.0001]
+            lambda_ = [0.1, 0.01, 0.001, 0.0001]
             params = [{'lambda': i} for i in lambda_]
 
             out_cv = []
@@ -161,12 +162,13 @@ for config_key in config.keys():
                 yv_hat = model_fit.predict(Xv).reshape(-1, 1)
                 perfor = cal_r2(yv, yv_hat)
                 out_cv.append(perfor)
-                print('params: ' + str(p) + '. CV r2-validation:' + str(perfor))
-                logging.info('params: ' + str(p) + '. CV r2-validation:' + str(perfor))
+                # print('params: ' + str(p) + '. CV r2-validation:' + str(perfor))
+                logger.info('params: ' + str(p) + '. CV r2-validation:' + str(perfor))
             # tic = time.time()
             # print(f"{model} train time: ", tic - tis)
             best_p = params[np.argmax(out_cv)]
             print("best p", best_p)
+            logger.info(f"{model_name} {year} {params} best hyperparamer ", best_p)
             model_fit = ElasticNet(alpha=best_p['lambda'], l1_ratio=0.5, random_state=0)
             model_fit.fit(Xt, yt)
             ytest_hat = model_fit.predict(Xtest).reshape(-1, 1)
@@ -284,12 +286,20 @@ for config_key in config.keys():
 
             model_name = f"NN{i}"
 
-            nn_res = []
             nn_is_preds = []
             nn_valid_preds = []
-            nn_preds = []
+            nn_oos_preds = []
+
+            nn_valid_r2 = []
+            nn_oos_r2 = []
+
             model_cntn = []
-            for model_num in tqdm(range(10)):
+            for model_num in range(5):
+                model_dir = Path("code", f"{model_name}")
+                if not os.path.exists(model_dir):
+                    os.mkdir(model_dir)
+                model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
+
                 if retrain:
                     tf.random.set_seed(model_num)
 
@@ -300,14 +310,10 @@ for config_key in config.keys():
                     Xv, yv = _Xv, _yv
                     Xtest, ytest = _Xtest, _ytest
 
-                    model_fit = genNNmodel(XX.shape[1], i, dropout=True)
+                    model_fit = genNNmodel(XX.shape[1], i)
                     earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=33,
                                                                  verbose=0, mode="min", baseline=None,
                                                                  restore_best_weights=True)
-                    model_dir = Path("code", f"{model_name}")
-                    if not os.path.exists(model_dir):
-                        os.mkdir(model_dir)
-                    model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
 
                     checkpoint = tf.keras.callbacks.ModelCheckpoint(model_pt, monitor='val_loss', verbose=0,
                                                                     save_best_only=True, mode='min')
@@ -326,34 +332,41 @@ for config_key in config.keys():
                         model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
                         model_fit.fit(Xt, yt, epochs=2, batch_size=2560, verbose=1,
                                       callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
+                    plt.plot(model_fit.history.history['loss'], label='train')
+                    plt.plot(model_fit.history.history['val_loss'], label='validation')
+                    plt.legend()
+                    plt.show()
+
                 else:
-                    model_fit = 0
+                    print("loading models")
+                    Xt, yt = _Xt, _yt
+                    _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=model_num+1))
+                    Xv, yv = _Xv, _yv
+                    Xtest, ytest = _Xtest, _ytest
+                    model_fit = tf.keras.models.load_model(model_pt, custom_objects={'_loss_fn': _loss_fn})
+
                 model_cntn.append(model_fit)
 
-                plt.plot(model_fit.history.history['loss'], label='train')
-                plt.plot(model_fit.history.history['val_loss'], label='validation')
-                plt.legend()
-                plt.show()
+                # is_predictions = model_fit.predict(Xt)
+                valid_pred = model_fit.predict(Xv)
+                oos_pred = model_fit.predict(Xtest)
+                # r2is = cal_r2(yt, is_predictions)
+                r2valid = cal_r2(yv, valid_pred)
+                r2oos = cal_r2(ytest, oos_pred)
+                # nr2oos = cal_normal_r2(ytest, predictions)
 
-                is_predictions = model_fit.predict(Xt)
-                valid_predictions = model_fit.predict(Xv)
-                predictions = model_fit.predict(Xtest)
-
-                r2is = cal_r2(yt, model_fit.predict(Xt, verbose=0))
-                r2valid = cal_r2(yv, model_fit.predict(Xv, verbose=0))
-                r2oos = cal_r2(ytest, predictions)
-                nr2oos = cal_normal_r2(ytest, predictions)
-
-                print(f"model{model_num} train r2", "{0:.3%}".format(r2is))
+                # print(f"model{model_num} train r2", "{0:.3%}".format(r2is))
                 print(f"model{model_num} valid r2", "{0:.3%}".format(r2valid))
                 print(f"model{model_num} test r2", "{0:.3%}".format(r2oos))
 
-                print(f"model{model_num}", "r2:", "{0:.3%}".format(r2oos), "demean r2:", "{0:.3%}".format(nr2oos))
-
-                nn_res.append(r2oos)
-                nn_is_preds.append(is_predictions)
-                nn_valid_preds.append(valid_predictions)
-                nn_preds.append(predictions)
+                # nn_is_preds.append(is_predictions)
+                # nn_valid_preds.append(valid_predictions)
+                nn_valid_r2.append(r2valid)
+                nn_oos_r2.append(r2oos)
+                # if r2valid < 0.1:
+                #   nn_oos_preds.append(oos_pred)
+                nn_valid_preds.append(valid_pred)
+                nn_oos_preds.append(oos_pred)
 
         elif config['runRF']:
             logger.info(year)
@@ -381,33 +394,51 @@ for config_key in config.keys():
             model_fit.save_model(model_pt)
 
         if runNN:
-            yt_hat = np.mean(np.concatenate(nn_is_preds, axis=1), axis=1).reshape(-1, 1)
+            # yt_hat = np.mean(np.concatenate(nn_is_preds, axis=1), axis=1).reshape(-1, 1)
             yv_hat = np.mean(np.concatenate(nn_valid_preds, axis=1), axis=1).reshape(-1, 1)
-            ytest_hat = np.mean(np.concatenate(nn_preds, axis=1), axis=1).reshape(-1, 1)
-            print("mean r2 among models", "{0:.3%}".format(np.mean(nn_res)))
+            ytest_hat = np.mean(np.concatenate(nn_oos_preds, axis=1), axis=1).reshape(-1, 1)
+            print(f"mean r2 in {year}among models", "{0:.3%}".format(np.mean(nn_oos_r2)))
+
+            save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
+            save_arrays(container, model_name, year, ytest, savekey='ytest')
+
+            save_arrays(container, model_name, year, yv_hat, savekey='yv_hat')
+            save_arrays(container, model_name, year, yv, savekey='yv')
+
+            save_year_res(model_name, year, 0, cal_r2(ytest, ytest_hat))
         else:
             yt_hat = model_fit.predict(Xt).reshape(-1, 1)
             ytest_hat = model_fit.predict(Xtest).reshape(-1, 1)
 
-        save_hat(container, model_name, yt_hat, savekey='yt_hat')
-        save_hat(container, model_name, yt, savekey='yt')
+            save_arrays(container, model_name, year, yt_hat, savekey='yt_hat')
+            save_arrays(container, model_name, year, yt, savekey='yt')
 
-        save_hat(container, model_name, ytest_hat, savehat=True)
-        save_hat(container, model_name, ytest, savehat=False)
+            save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
+            save_arrays(container, model_name, year, ytest, savekey='ytest')
 
-        save_year_res(model_name, year, cal_r2(yt, yt_hat), cal_r2(ytest, ytest_hat))
+            save_year_res(model_name, year, cal_r2(yt, yt_hat), cal_r2(ytest, ytest_hat))
 
-
-    r2oos = cal_model_r2(container, model_name)
+    if runNN:
+        r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
+        print(f"{model_name} valid R2: ", "{0:.3%}".format(r2v))
+    else:
+        r2is, r2is_df = cal_model_r2(container, model_name, set_type="is")
+        print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))
+    r2oos, r2oos_df = cal_model_r2(container, model_name, set_type="oos")
     print(f"{model_name} R2: ", "{0:.3%}".format(r2oos))
-    nr2oos = cal_model_r2(container, model_name, normal=True)
-    print(f"{model_name} Normal R2: ", "{0:.3%}".format(nr2oos))
-    r2is = cal_model_r2(container, model_name, oos=False, normal=False)
-    print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))
-    nr2is = cal_model_r2(container, model_name, oos=False, normal=True)
-    print(f"{model_name} ISN R2: ", "{0:.3%}".format(nr2is))
+    # nr2oos = cal_model_r2(container, model_name, normal=True)
+    # print(f"{model_name} Normal R2: ", "{0:.3%}".format(nr2oos))
 
-    save_res(model_name, r2is, r2oos, nr2is, nr2oos)
+    # nr2is = cal_model_r2(container, model_name, oos=False, normal=True)
+    # print(f"{model_name} ISN R2: ", "{0:.3%}".format(nr2is))
+
+    save_res(model_name, r2is, r2oos, nr2is=0, nr2oos=0)
+
+    if not os.path.exists(Path('code') / model_name):
+        os.mkdir(Path('code') / model_name)
+    with open(Path('code') / model_name / f"predictions.pkl", "wb+") as f:
+        pickle.dump(container[model_name], f)
+
     config[config_key] = 0
 
 #%%

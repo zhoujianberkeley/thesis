@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import joblib
 
+
 def setwd():
     _paths = os.path.split(os.getcwd())
     if _paths[-1] == "code":
@@ -49,40 +50,49 @@ def cal_normal_r2(true, hat):
     return 1 - a/b
 
 
-def cal_model_r2(container, model, oos=True, normal=False):
-    if oos:
-        ytrue = container[model]['true']
-        yhat = container[model]['hat']
-    else:
-        ytrue = container[model]['yt']
-        yhat = container[model]['yt_hat']
-
-    if normal:
-        return cal_normal_r2(ytrue, yhat)
-    else:
-        return cal_r2(ytrue, yhat)
-
-def save_hat(container, model, to_save, savehat=None, savekey=None):
-    if model not in container.keys():
-        container[model] = {}
-        container[model]['hat'] = np.array([]).reshape(-1, 1)
-        container[model]['true'] = np.array([]).reshape(-1, 1)
-        return save_hat(container, model, to_save, savehat, savekey)
-    elif savekey is not None:
-        if savekey not in container[model].keys():
-            container[model][savekey] = np.array([]).reshape(-1, 1)
-            return save_hat(container, model, to_save, savehat, savekey)
-        else:
-            container[model][savekey] = np.vstack((container[model][savekey], to_save))
-            return
-    elif savehat is True:
-        container[model]['hat'] = np.vstack((container[model]['hat'], to_save))
-        return
-    elif savehat is False:
-        container[model]['true'] = np.vstack((container[model]['true'], to_save))
-        return
+def _cal_model_r2(years_dict, set_type):
+    if set_type == 'oos':
+        key1 = 'ytest'
+        key2 = 'ytest_hat'
+    elif set_type == 'valid':
+        key1 = 'yv'
+        key2 = 'yv_hat'
+    elif set_type == 'is':
+        key1 = 'yt'
+        key2 = 'yt_hat'
     else:
         raise NotImplementedError()
+
+    ytrues, yhats= [], []
+    years_r2 = {}
+    for key, value in years_dict.items():
+        ytrue = value[key1]
+        yhat = value[key2]
+        years_r2[key] = cal_r2(ytrue, yhat)
+        ytrues.append(ytrue)
+        yhats.append(yhat)
+    ytrues, yhats = np.concatenate(ytrues, axis=0), np.concatenate(yhats, axis=0)
+    df = pd.DataFrame.from_dict(years_r2, orient='index', columns=['r2']).sort_values(by='r2', ascending=True)
+    print(df)
+    return cal_r2(ytrues, yhats), df
+
+
+def cal_model_r2(container, model, set_type, normal=False):
+    r2, r2df = _cal_model_r2(container[model], set_type)
+    return r2, r2df
+
+
+def save_arrays(container, model, year, to_save, savekey):
+    if model not in container.keys():
+        container[model] = {}
+        return save_arrays(container, model, year, to_save, savekey)
+    elif year not in container[model].keys():
+        container[model][year] = {}
+        return save_arrays(container, model, year, to_save, savekey)
+    else:
+        container[model][year][savekey] = to_save
+
+
 
 def save_res(model_name, r2is, r2oos, nr2is=None, nr2oos=None):
     dir = Path("code", "model_result.csv")
@@ -98,6 +108,7 @@ def save_res(model_name, r2is, r2oos, nr2is=None, nr2oos=None):
     if nr2is:   res.loc[model_name, "demean oos r2"] = "{0:.2%}".format(nr2oos)
     if nr2oos:  res.loc[model_name, "demean is r2"] = "{0:.2%}".format(nr2is)
     res.to_csv(dir)
+
 
 def save_year_res(model_name, year, r2is, r2oos):
     dir = Path("code", "model_result_year.csv")
@@ -161,3 +172,29 @@ def add_months(orig_date, n):
 _add_one_month("2015-12")
 add_months("2015-12", 13)
 # %%
+
+# def save_arrays(container, model, year, to_save, savehat=None, savekey=None):
+#     if model not in container.keys():
+#         container[model] = {}
+#         container[model]['hat'] = np.array([]).reshape(-1, 1)
+#         container[model]['true'] = np.array([]).reshape(-1, 1)
+#         return save_arrays(container, model, year, to_save, savehat, savekey)
+#     elif year not in container[model].keys():
+#         container[model][year] = {}
+#         return save_arrays(container, model, year, to_save, savehat, savekey)
+#
+#     elif savekey is not None:
+#         if savekey not in container[model].keys():
+#             container[model][savekey] = np.array([]).reshape(-1, 1)
+#             return save_arrays(container, model, to_save, savehat, savekey)
+#         else:
+#             container[model][savekey] = np.vstack((container[model][savekey], to_save))
+#             return
+#     elif savehat is True:
+#         container[model]['hat'] = np.vstack((container[model]['hat'], to_save))
+#         return
+#     elif savehat is False:
+#         container[model]['true'] = np.vstack((container[model]['true'], to_save))
+#         return
+#     else:
+#         raise NotImplementedError()
