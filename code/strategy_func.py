@@ -79,7 +79,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
 
             tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
                                       eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
-            print(f"gbrt best iter {tree_m.best_iteration}   best score {tree_m.best_score}")
+            print(f"gbrt best iter {tree_m.best_iteration}", "best score", "{0:.3%}".format(tree_m.best_score))
             # tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
             #                                    learning_rate=p['lr'],
             #                                    min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
