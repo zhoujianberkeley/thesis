@@ -51,9 +51,9 @@ retrain = 0
 
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":1,
+    config = {"runOLS3":0,
               'runOLS3+H':0,
-                "runOLS":0,
+                "runOLS":1,
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
