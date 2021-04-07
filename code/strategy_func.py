@@ -41,28 +41,30 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
         max_depth = [1, 2]
         from sklearn.model_selection import ParameterGrid
         param_grid = {'num_trees': num_trees,
-                      'max_depth': max_depth,
-                      'lr':learning_rate,}
+                      'max_dep': max_depth,
+                      'lr':learning_rate}
         params = list(ParameterGrid(param_grid))
-
-        # params.append({'num_trees': t, 'max_dep': d, 'lr': l, 'subsample': s, 'loss': o})
 
     tis = time.time()
     out_cv = []
     for p in tqdm(params):
+        print(p)
         if runRF:
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
                                            min_samples_split=10, random_state=0, n_jobs=-1)
         elif runGBRT:
+            xgb.train()
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
                                       objective='reg:pseudohubererror')
-            tree_m.fit(Xt, yt.reshape(-1, ))
 
+            # tree_m.fit(Xt, yt.reshape(-1, ))
+            tree_m.fit(XX[:10000, :], yy[:10000, :].reshape(-1, ))
 
             tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
                                                learning_rate=p['lr'],
                                                min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
                                                subsample=p['subsample'], random_state=0)
+
         tree_m.fit(Xt, yt.reshape(-1, ))
         yv_hat = tree_m.predict(Xv).reshape(-1, 1)
         perfor = cal_r2(yv, yv_hat)
