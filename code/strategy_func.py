@@ -7,7 +7,6 @@ import numpy as np
 import logging
 
 import tensorflow as tf
-import tensorflow.keras as keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LeakyReLU, BatchNormalization, Dropout
 
@@ -53,12 +52,13 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
                                            min_samples_split=10, random_state=0, n_jobs=-1)
         elif runGBRT:
-            xgb.train()
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
-                                      objective='reg:pseudohubererror')
+                                      objective='reg:pseudohubererror',
+                                      early_stopping_rounds=0.1*p['num_trees'],
+                                      eval_set=[(Xv, yv.reshape(-1, ))], verbose=True)
 
             # tree_m.fit(Xt, yt.reshape(-1, ))
-            tree_m.fit(XX[:10000, :], yy[:10000, :].reshape(-1, ))
+            tree_m.fit(Xt, yt.reshape(-1, ))
 
             tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
                                                learning_rate=p['lr'],

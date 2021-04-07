@@ -54,11 +54,11 @@ if runGPU:
     print('Found GPU at: {}'.format(device_name))
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":1,
-              'runOLS3+H':1,
-                "runOLS":1,
+    config = {"runOLS3":0,
+              'runOLS3+H':0,
+                "runOLS":0,
                 "runOLSH":0,
-                "runENET":1,
+                "runENET":0,
                 "runPLS":0,
                 "runPCR":1,
                 "runNN1":0,
