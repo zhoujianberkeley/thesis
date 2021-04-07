@@ -60,15 +60,15 @@ def intiConfig():
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
-                "runPCR":1,
+                "runPCR":0,
                 "runNN1":0,
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
               "runNN5": 0,
               "runNN6": 0,
-              "runRF": 1,
-              "runGBRT": 0,
+              "runRF": 0,
+              "runGBRT": 1,
               }
     return config
 

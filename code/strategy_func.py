@@ -33,7 +33,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
     elif runGBRT:
         model_name = "Boosting Trees"
         # boosting params
-        num_trees = (np.arange(2, 12, 4)) * 100
+        num_trees = [1000]
         learning_rate = [0.01, 0.1]
         # loss = ['huber']
         # cart tree params
@@ -51,21 +51,18 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
         if runRF:
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
                                            min_samples_split=10, random_state=0, n_jobs=-1)
+            tree_m.fit(Xt, yt.reshape(-1, ))
         elif runGBRT:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
-                                      objective='reg:pseudohubererror',
-                                      early_stopping_rounds=0.1*p['num_trees'],
+                                      objective='reg:pseudohubererror', random_state=0, n_jobs=-1)
+
+            tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
                                       eval_set=[(Xv, yv.reshape(-1, ))], verbose=True)
+            # tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
+            #                                    learning_rate=p['lr'],
+            #                                    min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
+            #                                    subsample=p['subsample'], random_state=0)
 
-            # tree_m.fit(Xt, yt.reshape(-1, ))
-            tree_m.fit(Xt, yt.reshape(-1, ))
-
-            tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
-                                               learning_rate=p['lr'],
-                                               min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
-                                               subsample=p['subsample'], random_state=0)
-
-        tree_m.fit(Xt, yt.reshape(-1, ))
         yv_hat = tree_m.predict(Xv).reshape(-1, 1)
         perfor = cal_r2(yv, yv_hat)
         out_cv.append(perfor)

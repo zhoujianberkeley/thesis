@@ -6,7 +6,7 @@ import numpy as np
 import joblib
 
 def setwd():
-    _paths = os.getcwd().split('/')
+    _paths = os.path.split(os.getcwd())
     if _paths[-1] == "code":
         os.chdir("..")
     elif os.getcwd() == '/content': # dir for colab
