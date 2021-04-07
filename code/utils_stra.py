@@ -126,8 +126,8 @@ def gen_model_pt(name, yr):
     return model_pt
 
 
-def save_model(name, to_save):
-    model_pt = gen_model_pt(name)
+def save_model(name, yr, to_save):
+    model_pt = gen_model_pt(name, yr)
     joblib.dump(to_save, model_pt)
 
 

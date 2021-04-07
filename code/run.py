@@ -67,8 +67,8 @@ def intiConfig():
                 "runNN4":0,
               "runNN5": 0,
               "runNN6": 0,
-              "runRF": 0,
-              "runGBRT": 1,
+              "runRF": 1,
+              "runGBRT": 0,
               }
     return config
 
@@ -356,7 +356,7 @@ for config_key in config.keys():
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
             model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False)
-            save_model(model_name, model_fit)
+            save_model(model_name, year, model_fit)
 
         elif config['runGBRT']:
             model_name = "GBRT"
