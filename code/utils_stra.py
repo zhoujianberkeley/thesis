@@ -73,6 +73,7 @@ def _cal_model_r2(years_dict, set_type):
         yhats.append(yhat)
     ytrues, yhats = np.concatenate(ytrues, axis=0), np.concatenate(yhats, axis=0)
     df = pd.DataFrame.from_dict(years_r2, orient='index', columns=['r2']).sort_values(by='r2', ascending=True)
+    print("*****", set_type, "*****")
     print(df)
     return cal_r2(ytrues, yhats), df
 
