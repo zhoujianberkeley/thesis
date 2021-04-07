@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 import platform
 import logging
+from multiprocessing import cpu_count
 import numpy as np
 from sklearn.linear_model import HuberRegressor, LinearRegression
 from sklearn.decomposition import PCA

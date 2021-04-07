@@ -1,5 +1,6 @@
 import time
 from tqdm import tqdm
+from multiprocessing import cpu_count
 import numpy as np
 import joblib
 import os
@@ -70,11 +71,11 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
         print(p)
         if runRF:
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
-                                           min_samples_split=10, random_state=0, n_jobs=-1)
+                                           min_samples_split=10, random_state=0, n_jobs=cpu_count()-2)
             tree_m.fit(Xt, yt.reshape(-1, ))
         elif runGBRT:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
-                                      objective='reg:pseudohubererror', random_state=0, n_jobs=-1)
+                                      objective='reg:pseudohubererror', random_state=0, n_jobs=cpu_count()-2)
 
             tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
                                       eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
