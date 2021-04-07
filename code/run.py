@@ -366,7 +366,8 @@ for config_key in config.keys():
             model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True)
             # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
             # The canonical way to save and restore models is by load_model and save_model.
-
+            model_pt = gen_model_pt(model_name, year)
+            model_fit.save_model(model_pt)
 
         if runNN:
             yt_hat = np.mean(np.concatenate(nn_is_preds, axis=1), axis=1).reshape(-1, 1)
