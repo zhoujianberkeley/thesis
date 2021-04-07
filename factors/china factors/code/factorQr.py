@@ -30,16 +30,21 @@ import utils
 from utils import todate, save_f, cleandf, date_list
 # %%
 # load data
-_load = True
+_load = False
 if _load:
-    Quarter_data = pd.read_csv(Path('data', 'QuarterFactorPrcd.csv'),encoding='gbk')
+    Quarter_data = pd.read_csv(Path('data', 'buffer', 'QuarterFactorPrcd.csv'),encoding='gbk')
     Quarter_data = todate(Quarter_data, 'end_date', format='%Y-%m-%d')
     # s_date = date(2009, 12, 31)
     # Quarter_data = Quarter_data[Quarter_data['end_date'] > pd.to_datetime(s_date)]
     Quarter_data.index = range(len(Quarter_data))
-    Quarter_data.to_pickle(Path('data', 'QuarterFactorPrcd.pkl'))
+    Quarter_data.to_pickle(Path('data', 'buffer', 'QuarterFactorPrcd.pkl'))
 else:
-    Quarter_data = pd.read_pickle(Path('data', 'QuarterFactorPrcd.pkl'))
+    Quarter_data = pd.read_pickle(Path('data', 'buffer', 'QuarterFactorPrcd.pkl'))
+
+# tmp = Quarter_data.set_index(['ts_code', 'end_date'])
+# print(tmp.index.__len__())
+# print(tmp.index.unique().__len__())
+
 
 # %%
 '''
@@ -84,7 +89,7 @@ In the final data label you transform list_date to age
 fn = 'Factor04_age'
 list_date = pro.stock_basic(exchange='',list_status='L')
 list_date['list_date'] = list_date['list_date'].apply(lambda x: datetime.strptime(str(x), '%Y%m%d'))
-Quarter_data = Quarter_data.merge(list_date[['ts_code', 'list_date']], on='ts_code')
+Quarter_data = Quarter_data.merge(list_date[['ts_code', 'list_date']], on='ts_code', how='left')
 f4 = Quarter_data['end_date'] - Quarter_data['list_date']
 Quarter_data[fn] = f4
 
@@ -135,7 +140,6 @@ f11 = Quarter_data['ca_to_assets']
 Quarter_data[fn] = f11
 save_f(f11, fn)
 #%%
-
 '''
 12.cashdebt - annual -cash flow to debt
 Earning before depreciation and extraordinary items(ib+dp) divided by average total liabilities(lt)
@@ -252,10 +256,11 @@ if not os.path.exists(f27_pt):
 # %%
 divi = pd.read_csv(f27_pt)
 divi['end_date'] = divi['end_date'].astype(int).astype(str)
-divi = divi[divi['end_date'].isin(date_list)]
-
+divi['end_date'] = pd.to_datetime(divi['end_date']) + pd.offsets.QuarterEnd(0)
+divi = divi.drop_duplicates(['ts_code', 'end_date'], keep='last') # must drop duplicates
+2
 divi['pay_01'] = divi['pay_date']*0+1
-divi['pay_01'].fillna(value=0,inplace=True)
+divi['pay_01'] = divi['pay_01'].fillna(value=0)
 
 divi = divi.sort_values(by=['ts_code','end_date'],ascending=[True,True])
 divi['raw_divi'] = divi.groupby(['ts_code'])['pay_01'].diff().fillna(0)
@@ -263,8 +268,8 @@ divi['raw_divi'] = divi.groupby(['ts_code'])['pay_01'].diff().fillna(0)
 #%%
 divi_tm = divi[['ts_code', 'end_date', 'raw_divi']]
 divi_tm['Factor27_divi'] = divi_tm['raw_divi'].replace({-1:0})
-divi_tm['end_date'] = divi['end_date'].apply(lambda x: datetime.strptime(x, "%Y%m%d"))
-Quarter_data = Quarter_data.merge(divi_tm,  on=["ts_code", "end_date"])
+# divi_tm['end_date'] = divi['end_date'].apply(lambda x: datetime.strptime(x, "%Y%m%d"))
+Quarter_data = Quarter_data.merge(divi_tm,  on=["ts_code", "end_date"], how='left')
 
 # %%
 '''
@@ -275,8 +280,7 @@ Use divi data
 divi_tm = divi[['ts_code', 'end_date', 'raw_divi']]
 divi_tm['Factor28_divo'] = divi_tm['raw_divi'].replace({1:0})
 divi_tm['Factor28_divo'] = divi_tm['raw_divi'].replace({-1:1})
-divi_tm['end_date'] = divi_tm['end_date'].apply(lambda x: datetime.strptime(x, "%Y%m%d"))
-Quarter_data = Quarter_data.merge(divi_tm,  on=["ts_code", "end_date"])
+Quarter_data = Quarter_data.merge(divi_tm,  on=["ts_code", "end_date"], how="left")
 
 # %%
 '''
@@ -622,7 +626,7 @@ F_△LIQUID    :  1 if △LIQUID >0, LIQUID = current ratio
                                  △LIQUID = LIQUID_t - LIQUID_t-1
 EQ_OFFER     :  1 if no nwe equity offered by companies.无新股发行
 
-caliberation:
+calibration:
 in this article the asset are using beginning of the year. We just use this year to maintain period simiarity. 
 '''
 F1 = Quarter_data['roa'] > 0
@@ -770,7 +774,6 @@ An indicator equal to 1 if company has secured debt obligations(CDO)
 Replace with if company had mortgage_financing
 '''
 Quarter_data['Factor83_securedind'] = Quarter_data['mortgage_financing']*0+1
-
 #%%
 
 '''
@@ -845,7 +848,7 @@ Quarter_data['Factor92_sue'] = Quarter_data.groupby(Quarter_data['ts_code'])['eb
 93. tang: debt capacity/firm tangibility
 Cash holdings + 0.715 × receivables +0.547 × inventory + 0.535 × PPE/total assets 
 '''
-Quarter_data['Factor93_tang'] = Quarter_data['cash_reser_cb'] + 0.715*Quarter_data['accounts_receiv'] + 0.547*Quarter_data['inventories'] + 0.535*Quarter_data['fix_assets']/Quarter_data['total_assets']
+Quarter_data['Factor93_tang'] = Quarter_data['money_cap'] + 0.715*Quarter_data['accounts_receiv'] + 0.547*Quarter_data['inventories'] + 0.535*Quarter_data['fix_assets']/Quarter_data['total_assets']
 
 #%%
 
@@ -863,5 +866,6 @@ We replace it with tax_return(by government) sign. I cannot find maximum_tax_rat
 Quarter_data['Factor94_tb'] = Quarter_data['taxes_payable']/(0.25*Quarter_data['ebit_x'])
 # %%
 Out_df = utils.extrct_fctr(Quarter_data)
-Out_df.to_csv(Path('_saved_factors', 'QrtFactor.csv'))
+utils.check(Out_df)
+Out_df.to_csv(Path('_saved_factors', 'QrtFactor.csv'), index=False)
 #%%

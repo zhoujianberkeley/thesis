@@ -15,19 +15,17 @@ import tushare as ts
 ts.set_token(token)
 pro = ts.pro_api()
 
-_paths = os.getcwd().split('/')
-if _paths[-1] == "code":
-    os.chdir("..")
+import utils
+utils.setdir_fctr()
 
 s_path = Path("_saved_factors")
 if not os.path.exists(s_path):
     os.mkdir(s_path)
 
-import utils
 
 # %%
 # load data
-_load = True
+_load = False
 if _load:
     Monthly_Quotation = utils.cleandf(pd.read_csv(Path('data', 'buffer', 'MonFactorPrcd.csv')))
     Monthly_Quotation = utils.todate(Monthly_Quotation, 'end_date', format='%Y-%m-%d')
@@ -36,6 +34,11 @@ if _load:
 else:
     Monthly_Quotation = pd.read_pickle(Path('data', 'buffer', 'MonFactorPrcd.pkl'))
 
+Monthly_Quotation['monthly_return'] = Monthly_Quotation.groupby(['ts_code'])['close'].pct_change()
+Monthly_Quotation[['ts_code', 'end_date', 'monthly_return']].to_csv(Path('_saved_factors', 'MonY.csv'), index=False)
+
+Ind_fctr = pd.get_dummies(Monthly_Quotation.set_index(['ts_code', 'end_date'])['industry'], prefix='Ind').reset_index()
+Ind_fctr.to_csv(Path('_saved_factors', 'IndFactor.csv'), index=False)
 # %%
 '''
 7.beta - monthly
@@ -113,7 +116,7 @@ Monthly_Quotation['Factor49_mom6m'] = Monthly_Quotation['change'].groupby(Monthl
 51. mve: Size - monthly
 Natural log of market capitalization at end of month t-1 
 '''
-Monthly_Quotation['Factor51_mve'] = np.log(Monthly_Quotation['market_value'].groupby(Monthly_Quotation['ts_code']).shift(0))
+Monthly_Quotation['Factor51_mve'] = np.log(Monthly_Quotation['market_value'])
 
 #%%
 '''
@@ -178,7 +181,6 @@ if not os.path.exists(spnd_pt):
     dfs = utils.cleandf(dfs)
     dfs.to_csv(spnd_pt, index=False)
 
-# %%
 df = pd.read_csv(spnd_pt)
 df = df.sort_values(by=['ts_code','suspend_date'],ascending=[True,True]).drop_duplicates()
 #历史遗留到2010-01-01的我们不再仔细追究，选取停牌日开始在2010年之后的
@@ -200,5 +202,7 @@ Deflator = 1/Monthly_Quotation.turnover.min()
 Monthly_Quotation['Factor96_zerotrade'] = Monthly_Quotation.suspend_date + 1/Monthly_Quotation.turnover /Deflator
 # %%
 Out_df = utils.extrct_fctr(Monthly_Quotation)
-Out_df.to_csv(Path('_saved_factors', 'MonFactor.csv'))
+utils.check(Out_df)
+Out_df.to_csv(Path('_saved_factors', 'MonFactor.csv'), index=False)
+
 # %%

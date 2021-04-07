@@ -73,7 +73,6 @@ dfs = [BalanceSheet, CashFlow, Income, FinaIndicator]
 df_final = reduce(lambda left,right:pd.merge(left,right,how='outer',on=['ts_code','ann_date','end_date']),dfs)
 
 QuarterFactorRaw = df_final.drop_duplicates()
-
 QuarterFactorRaw.to_csv(Path('data', 'buffer', 'QuarterFactorRaw.csv'), index=False)
 
 # %%

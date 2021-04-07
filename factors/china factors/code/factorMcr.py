@@ -32,6 +32,6 @@ res.index = res.index.map(lambda x: datetime.date(int(x[0]), int(x[1]), 1) + pd.
 res.index.name = 'end_date'
 
 Out_df = res.loc["2010":"2020", :].reset_index()
-
-Out_df.to_csv(Path('_saved_factors', 'MacroFactor.csv'))
+utils.check(Out_df)
+Out_df.to_csv(Path('_saved_factors', 'MacroFactor.csv'), index=False)
 # %%

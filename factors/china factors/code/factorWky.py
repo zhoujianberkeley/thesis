@@ -36,7 +36,7 @@ import utils
 
 #%%
 # load data
-_load = True
+_load = False
 if _load:
     Weekly_Quotation = utils.cleandf(pd.read_csv(Path('data', 'buffer', 'WeekFactorPrcd.csv'), encoding='gbk'))
     Weekly_Quotation = Weekly_Quotation.rename({'代码': 'ts_code', '日期': 'trade_date'}, axis=1)
@@ -140,7 +140,6 @@ def ray_reg(data:pd.DataFrame) -> pd.Series:
             }, index=pd.MultiIndex.from_tuples([(data.loc[ii, "ts_code"], data.loc[ii, "trade_date"])], names=["ts_code", "trade_date"]))
 
             res.append(tmp)
-
     return pd.concat(res)
 
 # apply multiprocessing
@@ -165,18 +164,25 @@ def ray_apply(df, func, workers = None):
 Weekly_Quotation['52_week_indicator'] = Weekly_Quotation.groupby('ts_code',as_index=False)['excess_return'].rolling(54).std().values
 Weekly_Quotation['52_week_indicator'] = Weekly_Quotation['52_week_indicator']*0+1
 
-tic = time.time()
-res_df = ray_apply(Weekly_Quotation, ray_reg)
-toc = time.time()
-print("calculation uses time : ", toc - tic)
-res_df = res_df.rename({'value':"Factor66_pricedelay"}, axis=1).reset_index()
-res_df.to_csv(Path('data', "factor66_pricedelay.csv"))
+fct66_pt = Path('data', "factor66_pricedelay.csv")
+if os.path.exists(fct66_pt):
+    res_df = utils.cleandf(pd.read_csv(fct66_pt))
+else:
+    tic = time.time()
+    res_df = ray_apply(Weekly_Quotation, ray_reg)
+    toc = time.time()
+    print("calculation uses time : ", toc - tic)
+    res_df = res_df.rename({'value':"Factor66_pricedelay"}, axis=1).reset_index()
+    res_df.to_csv(Path('data', "factor66_pricedelay.csv"), index=False)
 
 Weekly_Quotation = Weekly_Quotation.merge(res_df, on=['ts_code', 'trade_date'], how='left')
 # %% output
 Weekly_Quotation['trade_date'] = pd.to_datetime(Weekly_Quotation['trade_date'])
-Weekly_Quotation['end_date'] = Weekly_Quotation['trade_date'] #+ pd.offsets.MonthEnd(0)
+Weekly_Quotation['end_date'] = Weekly_Quotation['trade_date'] + pd.offsets.MonthEnd(0)
+
 
 Out_df = utils.extrct_fctr(Weekly_Quotation)
-Out_df.to_csv(Path('_saved_factors', 'WeekFactor.csv'))
+Out_df = Out_df.groupby(['ts_code', 'end_date'], as_index=False).mean()
+utils.check(Out_df)
+Out_df.to_csv(Path('_saved_factors', 'WeekFactor.csv'), index=False)
 # %%
