@@ -46,14 +46,14 @@ XX, yy = split(data)
 print(XX.shape)
 print(yy.shape)
 # %%
-runGPU = 1
+runGPU = 0
 retrain = 0
 
 # train30% validation20% test50% split
 def intiConfig():
     config = {"runOLS3":0,
               'runOLS3+H':0,
-                "runOLS":1,
+                "runOLS":0,
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
@@ -62,10 +62,11 @@ def intiConfig():
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
-              "runNN5": 0,
-              "runNN6": 0,
-              "runRF": 0,
-              "runGBRT": 0,
+                "runNN5": 0,
+                "runNN6": 0,
+                "runRF": 0,
+                "runGBRT": 0,
+                "runGBRT2": 1
               }
     return config
 
@@ -76,17 +77,16 @@ for config_key in config.keys():
     print(f"running model {config_key}")
     # data index should be ticker date
     runNN = sum([config[i] for i in [i for i in config.keys() if re.match("runNN[0-9]", i)]])
-    if runNN:
-        if runGPU:
-            device_name = tf.test.gpu_device_name()
-            if device_name != '/device:GPU:0':
-                if platform.system() == 'linus':
-                    raise SystemError('GPU device not found')
-                else:
-                    pass
-            print('Found GPU at: {}'.format(device_name))
+    if runNN and runGPU:
+        device_name = tf.test.gpu_device_name()
+        if device_name != '/device:GPU:0' and platform.system() == 'linus':
+            raise SystemError('GPU device not found')
+        print('Found GPU at: {}'.format(device_name))
 
     container = {}
+    nn_valid_r2 = []
+    nn_oos_r2 = []
+
     # for year in tqdm(range(2013, 2019)):
     #     p_t = [str(1900), str(year)] # period of training
     #     # p_t = [str(year-3), str(year)]
@@ -290,9 +290,6 @@ for config_key in config.keys():
             nn_valid_preds = []
             nn_oos_preds = []
 
-            nn_valid_r2 = []
-            nn_oos_r2 = []
-
             model_cntn = []
             for model_num in range(5):
                 model_dir = Path("code", f"{model_name}")
@@ -314,7 +311,6 @@ for config_key in config.keys():
                     earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=33,
                                                                  verbose=0, mode="min", baseline=None,
                                                                  restore_best_weights=True)
-
                     checkpoint = tf.keras.callbacks.ModelCheckpoint(model_pt, monitor='val_loss', verbose=0,
                                                                     save_best_only=True, mode='min')
                     cb_list = [earlystop, checkpoint]
@@ -330,7 +326,7 @@ for config_key in config.keys():
                                           callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
                     else:
                         model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
-                        model_fit.fit(Xt, yt, epochs=2, batch_size=2560, verbose=1,
+                        model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
                                       callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
                     plt.plot(model_fit.history.history['loss'], label='train')
                     plt.plot(model_fit.history.history['val_loss'], label='validation')
@@ -360,14 +356,12 @@ for config_key in config.keys():
                 print(f"model{model_num} test r2", "{0:.3%}".format(r2oos))
 
                 # nn_is_preds.append(is_predictions)
-                # nn_valid_preds.append(valid_predictions)
                 nn_valid_r2.append(r2valid)
                 nn_oos_r2.append(r2oos)
-                # if r2valid < 0.1:
+                # if r2valid < 0.11273255028948781:
                 #   nn_oos_preds.append(oos_pred)
                 nn_valid_preds.append(valid_pred)
                 nn_oos_preds.append(oos_pred)
-
         elif config['runRF']:
             logger.info(year)
             model_name = "RF"
@@ -375,9 +369,9 @@ for config_key in config.keys():
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
             if not retrain:
-                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=True, runGBRT=False)
+                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
             else:
-                model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False)
+                model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
             save_model(model_name, year, model_fit)
         elif config['runGBRT']:
             model_name = "GBRT"
@@ -385,9 +379,22 @@ for config_key in config.keys():
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
             if not retrain:
-                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=True)
+                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
             else:
-                model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True)
+                model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
+            # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
+            # The canonical way to save and restore models is by load_model and save_model.
+            model_pt = gen_model_pt(model_name, year)
+            model_fit.save_model(model_pt)
+        elif config['runGBRT2']:
+            model_name = "GBRT2"
+            Xt, yt = _Xt, _yt
+            Xv, yv = _Xv, _yv
+            Xtest, ytest = _Xtest, _ytest
+            if not retrain:
+                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=False, runGBRT2=True)
+            else:
+                model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=False, runGBRT2=True)
             # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
             # The canonical way to save and restore models is by load_model and save_model.
             model_pt = gen_model_pt(model_name, year)
@@ -399,11 +406,11 @@ for config_key in config.keys():
             ytest_hat = np.mean(np.concatenate(nn_oos_preds, axis=1), axis=1).reshape(-1, 1)
             print(f"mean r2 in {year}among models", "{0:.3%}".format(np.mean(nn_oos_r2)))
 
-            save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
-            save_arrays(container, model_name, year, ytest, savekey='ytest')
-
             save_arrays(container, model_name, year, yv_hat, savekey='yv_hat')
             save_arrays(container, model_name, year, yv, savekey='yv')
+
+            save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
+            save_arrays(container, model_name, year, ytest, savekey='ytest')
 
             save_year_res(model_name, year, 0, cal_r2(ytest, ytest_hat))
         else:
@@ -418,9 +425,23 @@ for config_key in config.keys():
 
             save_year_res(model_name, year, cal_r2(yt, yt_hat), cal_r2(ytest, ytest_hat))
 
+
     if runNN:
         r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
+        r2is = r2v
         print(f"{model_name} valid R2: ", "{0:.3%}".format(r2v))
+        c = np.array(nn_valid_r2)
+        d = np.array(nn_oos_r2)
+        print("the correlation coefficients is :", np.corrcoef(c, d))
+        plt.scatter(c, d)
+        plt.xlabel("validation scores")
+        plt.ylabel("test scores")
+        plt.title(f"{model_name}")
+        plt.show()
+        with open(model_dir / "validation_score.pkl", "wb") as f:
+            pickle.dump(c, f)
+        with open(model_dir / "testing_score.pkl", "wb") as f:
+            pickle.dump(d, f)
     else:
         r2is, r2is_df = cal_model_r2(container, model_name, set_type="is")
         print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))
@@ -442,3 +463,13 @@ for config_key in config.keys():
     config[config_key] = 0
 
 #%%
+
+# combine = np.concatenate([c.reshape(-1,1),d.reshape(-1,1)], axis=1)
+# slice = combine[combine[:,0].argsort()][:-100]
+# np.corrcoef(slice[:,0], slice[:,1])
+#%%
+# c = np.array(nn_valid_r2)
+# c.sort()
+# c[-len(nn_valid_r2)//10]
+
+# %%

@@ -25,8 +25,8 @@ fh = logging.FileHandler('records.log')
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 # %%
-def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT):
-    assert runRF + runGBRT == 1
+def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
+    assert runRF + runGBRT + runGBRT2 == 1
     model_pt = gen_model_pt(model_name, year)
     if not os.path.exists(model_pt):
         print(f"can't find trained model {model_name} {year}, retraining")
@@ -35,13 +35,13 @@ def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT):
         print(f"load model from {model_pt}")
         if runRF:
             tree_m = joblib.load(model_pt)
-        elif runGBRT:
+        elif runGBRT or runGBRT2:
             tree_m = xgb.XGBRegressor()
             tree_m.load_model(model_pt)
         return tree_m
 
-def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
-    assert runRF + runGBRT == 1
+def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
+    assert runRF + runGBRT + runGBRT2 == 1
     if runRF:
         model_name = "Random Forest"
         max_depth = np.arange(2, 7, 2)
@@ -51,7 +51,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
         param_grid = {'max_dep': max_depth,
                       'max_fea':max_features}
         params = list(ParameterGrid(param_grid))
-    elif runGBRT:
+    elif runGBRT or runGBRT2:
         model_name = "Boosting Trees"
         # boosting params
         num_trees = [1000]
@@ -84,9 +84,19 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT):
             #                                    learning_rate=p['lr'],
             #                                    min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
             #                                    subsample=p['subsample'], random_state=0)
+        elif runGBRT2:
+            tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
+                                      objective='reg:squarederror', random_state=0, n_jobs=cpu_count()-5)
+
+            tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
+                                      eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
+            print(f"gbrt best iter {tree_m.best_iteration}", "best score", "{0:.3%}".format(tree_m.best_score))
+        else:
+            raise NotImplementedError()
+
         yv_hat = tree_m.predict(Xv).reshape(-1, 1)
         score = cal_r2(yv, yv_hat)
-        print('params: ' + str(p) + '. CV r2-validation:' + "{0:.3%}".format(str(score)))
+        print('params: ' + str(p) + '. CV r2-validation:' + "{0:.3%}".format(score))
         scores.append(score)
         model_list.append(tree_m)
     tic = time.time()
