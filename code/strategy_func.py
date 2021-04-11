@@ -30,7 +30,7 @@ def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     model_pt = gen_model_pt(model_name, year)
     if not os.path.exists(model_pt):
         print(f"can't find trained model {model_name} {year}, retraining")
-        return tree_model(Xt, yt, Xv, yv, runRF, runGBRT)
+        return tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2)
     else:
         print(f"load model from {model_pt}")
         if runRF:
