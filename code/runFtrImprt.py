@@ -57,8 +57,8 @@ def intiConfig():
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
-                "runPCR":0,
-                "runNN1":1,
+                "runPCR":1,
+                "runNN1":0,
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
@@ -92,8 +92,7 @@ def cal_importance(data, config):
         res = res.append({"factor":fctr, "r2":r2oos}, ignore_index=True)
     return res, model_name
 
-import imp, model_func
-imp.reload(model_func)
+
 ftr_imp, model_name = cal_importance(data, config)
 ftr_imp = ftr_imp.set_index('factor')
 ftr_imp['r2 reduction'] = ftr_imp.loc["all factor", "r2"] - ftr_imp["r2"]

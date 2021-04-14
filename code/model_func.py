@@ -404,6 +404,7 @@ def runFeatureImportance(data, config, runNN):
         elif config['runPCR']:
             model_name = "PCR"
             Xtest, ytest = _Xtest, _ytest
+            Xtest = pca.transform(Xtest)
             model_fit = load_model(model_name, year)
         elif config['runRF']:
             model_name = "RF"
@@ -426,7 +427,6 @@ def runFeatureImportance(data, config, runNN):
                 i = 5
             elif config["runNN6"]:
                 i = 6
-
             model_name = f"NN{i}"
 
             nn_oos_preds = []

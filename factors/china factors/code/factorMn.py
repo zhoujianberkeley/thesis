@@ -36,6 +36,7 @@ else:
 
 Monthly_Quotation['monthly_return'] = Monthly_Quotation.groupby(['ts_code'])['close'].pct_change()
 Monthly_Quotation[['ts_code', 'end_date', 'monthly_return']].to_csv(Path('_saved_factors', 'MonY.csv'), index=False)
+Monthly_Quotation[['ts_code', 'end_date', 'close']].to_csv(Path('_saved_factors', 'MonClose.csv'), index=False)
 
 Ind_fctr = pd.get_dummies(Monthly_Quotation.set_index(['ts_code', 'end_date'])['industry'], prefix='Ind').reset_index()
 Ind_fctr.to_csv(Path('_saved_factors', 'IndFactor.csv'), index=False)
