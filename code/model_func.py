@@ -41,6 +41,7 @@ def runModel(data, config, retrain, runGPU, runNN):
         nn_valid_r2 = []
         nn_oos_r2 = []
 
+    bcktst_df = data[['Y']]
     for year in tqdm(pd.date_range('20131231', '20200831', freq='M')):
         year = datetime.datetime.strftime(year, "%Y-%m")
 
@@ -50,7 +51,9 @@ def runModel(data, config, retrain, runGPU, runNN):
 
         _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=0))
         _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=0))
-        _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
+
+        test_df = data.loc(axis=0)[:, p_test[0]:p_test[1]]
+        _Xtest, _ytest = split(test_df)
 
         #OLS
         if config['runOLS3']:
@@ -214,7 +217,7 @@ def runModel(data, config, retrain, runGPU, runNN):
             ytest_hat = model_fit.predict(Xtest)
             best_perfor = cal_r2(ytest, ytest_hat)
             print(f"{model_name} oss r2 in {year}:", best_perfor)
-            save_model("PCA", year, model_fit)
+            save_model("PCA", year, pca)
             save_model(model_name, year, model_fit)
 
         elif runNN:
@@ -372,16 +375,17 @@ def runModel(data, config, retrain, runGPU, runNN):
 
             save_arrays(container, model_name, year, yt_hat, savekey='yt_hat')
             save_arrays(container, model_name, year, yt, savekey='yt')
-
             save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
             save_arrays(container, model_name, year, ytest, savekey='ytest')
+
+            bcktst_df.loc[test_df.index, "predict"] = ytest_hat
 
             save_year_res(model_name, year, cal_r2(yt, yt_hat), cal_r2(ytest, ytest_hat))
 
     if runNN:
-        return model_name, container, nn_valid_r2, nn_oos_r2, model_dir
+        return model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir
     else:
-        return model_name, container
+        return model_name, bcktst_df, container
 
 # %%
 def runFeatureImportance(data, config, runNN):
@@ -447,5 +451,4 @@ def runFeatureImportance(data, config, runNN):
             ytest_hat = model_fit.predict(Xtest).reshape(-1, 1)
         save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
         save_arrays(container, model_name, year, ytest, savekey='ytest')
-
     return model_name, container

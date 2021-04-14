@@ -12,7 +12,7 @@ def setwd():
         os.chdir("..")
     elif os.getcwd() == '/content': # dir for colab
         os.chdir(Path("drive")/ "MyDrive"/"Colab Notebooks")
-    print("working directory:", os.getcwd())
+    # print("working directory:", os.getcwd())
 
 setwd()
 # create logger with 'spam_application'

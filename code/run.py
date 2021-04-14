@@ -41,10 +41,7 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :88].columns) + ind_ftr + mcr_ftr + ["Y"]]
-XX, yy = split(data)
 
-print(XX.shape)
-print(yy.shape)
 # %%
 runGPU = 0
 retrain = 0
@@ -55,7 +52,7 @@ def intiConfig():
               'runOLS3+H':0,
                 "runOLS":0,
                 "runOLSH":0,
-                "runENET":1,
+                "runENET":0,
                 "runPLS":0,
                 "runPCR":0,
                 "runNN1":0,
@@ -64,7 +61,7 @@ def intiConfig():
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
-                "runRF": 0,
+                "runRF": 1,
                 "runGBRT": 0,
                 "runGBRT2": 0
               }
@@ -91,7 +88,7 @@ for config_key in config.keys():
     #     p_v = [str(year+1), str(year + 1)] # period of valiation
     #     p_test = [str(year + 2), str(year+2)]
     if runNN:
-        model_name, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN)
+        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN)
 
         r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
         r2is = r2v
@@ -109,7 +106,7 @@ for config_key in config.keys():
         with open(model_dir / "testing_score.pkl", "wb") as f:
             pickle.dump(d, f)
     else:
-        model_name, container = runModel(data, config, retrain, runGPU, runNN)
+        model_name, bcktst_df, container = runModel(data, config, retrain, runGPU, runNN)
 
         r2is, r2is_df = cal_model_r2(container, model_name, set_type="is")
         print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))
