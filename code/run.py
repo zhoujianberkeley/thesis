@@ -126,6 +126,7 @@ for config_key in config.keys():
     with open(Path('code') / model_name / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
+    bcktst_df.set_index(["ticker", "date"]).dropna().to_csv(Path('code') / model_name / "predictions.csv")
     config[config_key] = 0
 
 #%%

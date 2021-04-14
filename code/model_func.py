@@ -391,7 +391,7 @@ def runModel(data, config, retrain, runGPU, runNN):
 def runFeatureImportance(data, config, runNN):
     container = {}
 
-    for year in pd.date_range('20131231', '20200831', freq='M'):
+    for year in tqdm(pd.date_range('20131231', '20200831', freq='M')):
         year = datetime.datetime.strftime(year, "%Y-%m")
 
         p_test = [add_months(year, 4), add_months(year, 4)]
