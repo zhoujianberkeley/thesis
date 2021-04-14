@@ -21,9 +21,8 @@ import joblib
 
 from utils_stra import split, cal_r2, cal_normal_r2, cal_model_r2
 from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
-from utils_stra import add_months, gen_model_pt, save_model
+from utils_stra import add_months, gen_model_pt, load_model, save_model
 from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn
-
 
 setwd()
 # create logger with 'spam_application'
@@ -52,6 +51,7 @@ def runModel(data, config, retrain, runGPU, runNN):
         _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=0))
         _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=0))
         _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
+
         #OLS
         if config['runOLS3']:
             model_name = "OLS3"
@@ -85,6 +85,7 @@ def runModel(data, config, retrain, runGPU, runNN):
             yt = np.vstack((_yt, _yv))
             Xtest, ytest = _Xtest, _ytest
             model_fit = LinearRegression(n_jobs=-1).fit(Xt, yt.reshape(-1, ))
+            save_model(model_name, year, model_fit)
 
         elif config['runOLSH']:  # OLS + H
             model_name = "OLSH"
@@ -123,6 +124,7 @@ def runModel(data, config, retrain, runGPU, runNN):
             ytest_hat = model_fit.predict(Xtest).reshape(-1, 1)
             best_perfor = cal_r2(ytest, ytest_hat)
             print(f"{model_name} oss r2:", best_perfor)
+            save_model(model_name, year, model_fit)
 
         elif config['runPLS']:
             from sklearn.cross_decomposition import PLSRegression
@@ -158,7 +160,7 @@ def runModel(data, config, retrain, runGPU, runNN):
 
         elif config['runPCR']:
             model_name = "PCR"
-            mtrain = np.mean(_yt)
+            # mtrain = np.mean(_yt)
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
@@ -212,6 +214,7 @@ def runModel(data, config, retrain, runGPU, runNN):
             ytest_hat = model_fit.predict(Xtest)
             best_perfor = cal_r2(ytest, ytest_hat)
             print(f"{model_name} oss r2 in {year}:", best_perfor)
+            save_model(model_name, year, model_fit)
 
         elif runNN:
             import tensorflow as tf
@@ -321,7 +324,7 @@ def runModel(data, config, retrain, runGPU, runNN):
                 model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
             else:
                 model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
-            save_model(model_name, year, model_fit)
+                save_model(model_name, year, model_fit)
         elif config['runGBRT']:
             model_name = "GBRT"
             Xt, yt = _Xt, _yt
@@ -331,10 +334,10 @@ def runModel(data, config, retrain, runGPU, runNN):
                 model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
             else:
                 model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
-            # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
-            # The canonical way to save and restore models is by load_model and save_model.
-            model_pt = gen_model_pt(model_name, year)
-            model_fit.save_model(model_pt)
+                # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
+                # The canonical way to save and restore models is by load_model and save_model.
+                model_pt = gen_model_pt(model_name, year)
+                model_fit.save_model(model_pt)
         elif config['runGBRT2']:
             model_name = "GBRT2"
             Xt, yt = _Xt, _yt
@@ -361,7 +364,7 @@ def runModel(data, config, retrain, runGPU, runNN):
             save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
             save_arrays(container, model_name, year, ytest, savekey='ytest')
 
-            save_year_res(model_name, year, 0, cal_r2(ytest, ytest_hat))
+            save_year_res(model_name, year, cal_r2(yv, yv_hat), cal_r2(ytest, ytest_hat))
         else:
             yt_hat = model_fit.predict(Xt).reshape(-1, 1)
             ytest_hat = model_fit.predict(Xtest).reshape(-1, 1)
@@ -378,3 +381,69 @@ def runModel(data, config, retrain, runGPU, runNN):
         return model_name, container, nn_valid_r2, nn_oos_r2, model_dir
     else:
         return model_name, container
+
+# %%
+def runFeatureImportance(data, config, runNN):
+    container = {}
+
+    for year in pd.date_range('20131231', '20200831', freq='M'):
+        year = datetime.datetime.strftime(year, "%Y-%m")
+
+        p_test = [add_months(year, 4), add_months(year, 4)]
+        _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
+        if False:
+            pass
+        elif config['runOLS']:
+            model_name= "OLS"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = load_model(model_name, year)
+        elif config['runENET']:
+            model_name = "ENET"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = load_model(model_name, year)
+        elif config['runPCR']:
+            model_name = "PCR"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = load_model(model_name, year)
+        elif config['runRF']:
+            model_name = "RF"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = tree_model_fast(model_name, year, None, None, None, None, runRF=True, runGBRT=False, runGBRT2=False)
+        elif runNN:
+            import tensorflow as tf
+            import tensorflow.keras as keras
+            from strategy_func import genNNmodel, _loss_fn
+
+            if config["runNN1"]:
+                i = 1
+            elif config["runNN2"]:
+                i = 2
+            elif config["runNN3"]:
+                i = 3
+            elif config["runNN4"]:
+                i = 4
+            elif config["runNN5"]:
+                i = 5
+            elif config["runNN6"]:
+                i = 6
+
+            model_name = f"NN{i}"
+
+            nn_oos_preds = []
+            for model_num in range(5):
+                model_dir = Path("code", f"{model_name}")
+                model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
+
+                Xtest, ytest = _Xtest, _ytest
+                model_fit = tf.keras.models.load_model(model_pt, custom_objects={'_loss_fn': _loss_fn})
+                oos_pred = model_fit.predict(Xtest)
+                nn_oos_preds.append(oos_pred)
+
+        if runNN:
+            ytest_hat = np.mean(np.concatenate(nn_oos_preds, axis=1), axis=1).reshape(-1, 1)
+        else:
+            ytest_hat = model_fit.predict(Xtest).reshape(-1, 1)
+        save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
+        save_arrays(container, model_name, year, ytest, savekey='ytest')
+
+    return model_name, container

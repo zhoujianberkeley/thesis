@@ -32,7 +32,7 @@ def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
         print(f"can't find trained model {model_name} {year}, retraining")
         return tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2)
     else:
-        print(f"load model from {model_pt}")
+        logger.debug(f"load model from {model_pt}")
         if runRF:
             tree_m = joblib.load(model_pt)
         elif runGBRT or runGBRT2:

@@ -51,11 +51,11 @@ retrain = 0
 
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":1,
+    config = {"runOLS3":0,
               'runOLS3+H':0,
                 "runOLS":0,
                 "runOLSH":0,
-                "runENET":0,
+                "runENET":1,
                 "runPLS":0,
                 "runPCR":0,
                 "runNN1":0,
@@ -130,21 +130,6 @@ for config_key in config.keys():
         pickle.dump(container[model_name], f)
 
     config[config_key] = 0
-
-#%%
-def cal_importance(data, config, retrain, runGPU, runNN):
-    for fctr in [i for i in data.columns if i.startswith("Factor")]:
-        databk = data.head(10).copy()
-        databk.loc[:, fctr] = 0
-        if runNN:
-            model_name, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(databk, config, retrain, runGPU, runNN)
-        else:
-            model_name, container = runModel(databk, config, retrain, runGPU, runNN)
-
-        r2oos, r2oos_df = cal_model_r2(container, model_name, set_type="oos")
-        print(f"{model_name} rm {fctr} R2: ", "{0:.3%}".format(r2oos))
-
-
 
 #%%
 # combine = np.concatenate([c.reshape(-1,1),d.reshape(-1,1)], axis=1)

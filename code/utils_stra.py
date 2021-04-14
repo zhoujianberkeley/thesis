@@ -94,7 +94,6 @@ def save_arrays(container, model, year, to_save, savekey):
         container[model][year][savekey] = to_save
 
 
-
 def save_res(model_name, r2is, r2oos, nr2is=None, nr2oos=None):
     dir = Path("code", "model_result.csv")
     if not os.path.exists(dir):
@@ -137,6 +136,9 @@ def gen_model_pt(name, yr):
     model_pt = model_dir / f"{yr}_model.joblib"
     return model_pt
 
+def load_model(name, yr):
+    model_pt = gen_model_pt(name, yr)
+    return joblib.load(model_pt)
 
 def save_model(name, yr, to_save):
     model_pt = gen_model_pt(name, yr)
@@ -153,7 +155,7 @@ def stream(data):
         _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]])
         _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
         yield _Xt, _yt, _Xv, _yv, _Xtest, _ytest
-# %%
+
 def _add_one_month(orig_date):
     # orig_date = '2015-02'
     # advance year and month by one month
@@ -173,29 +175,3 @@ def add_months(orig_date, n):
 _add_one_month("2015-12")
 add_months("2015-12", 13)
 # %%
-
-# def save_arrays(container, model, year, to_save, savehat=None, savekey=None):
-#     if model not in container.keys():
-#         container[model] = {}
-#         container[model]['hat'] = np.array([]).reshape(-1, 1)
-#         container[model]['true'] = np.array([]).reshape(-1, 1)
-#         return save_arrays(container, model, year, to_save, savehat, savekey)
-#     elif year not in container[model].keys():
-#         container[model][year] = {}
-#         return save_arrays(container, model, year, to_save, savehat, savekey)
-#
-#     elif savekey is not None:
-#         if savekey not in container[model].keys():
-#             container[model][savekey] = np.array([]).reshape(-1, 1)
-#             return save_arrays(container, model, to_save, savehat, savekey)
-#         else:
-#             container[model][savekey] = np.vstack((container[model][savekey], to_save))
-#             return
-#     elif savehat is True:
-#         container[model]['hat'] = np.vstack((container[model]['hat'], to_save))
-#         return
-#     elif savehat is False:
-#         container[model]['true'] = np.vstack((container[model]['true'], to_save))
-#         return
-#     else:
-#         raise NotImplementedError()
