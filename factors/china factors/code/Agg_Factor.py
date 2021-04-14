@@ -70,7 +70,7 @@ full_factors_y = full_factors_y.dropna(subset=['monthly_return'])
 full_factors_y.to_hdf(Path('_saved_factors', "full_factors.h5"), key='data')
 
 close = pd.read_csv(Path('_saved_factors', 'MonClose.csv')).set_index(['ts_code', 'end_date'], verify_integrity=True)
-close = full_factors_y.merge(y, on=['ts_code', 'end_date'])[['close']]
+close = full_factors_y.merge(close, on=['ts_code', 'end_date'])[['close']]
 close.to_hdf(Path('_saved_factors', "close.h5"), key='data')
 
 

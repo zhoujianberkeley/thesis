@@ -214,6 +214,7 @@ def runModel(data, config, retrain, runGPU, runNN):
             ytest_hat = model_fit.predict(Xtest)
             best_perfor = cal_r2(ytest, ytest_hat)
             print(f"{model_name} oss r2 in {year}:", best_perfor)
+            save_model("PCA", year, model_fit)
             save_model(model_name, year, model_fit)
 
         elif runNN:
@@ -404,6 +405,7 @@ def runFeatureImportance(data, config, runNN):
         elif config['runPCR']:
             model_name = "PCR"
             Xtest, ytest = _Xtest, _ytest
+            pca = load_model("PCA", year)
             Xtest = pca.transform(Xtest)
             model_fit = load_model(model_name, year)
         elif config['runRF']:
