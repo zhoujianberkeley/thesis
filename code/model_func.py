@@ -368,6 +368,8 @@ def runModel(data, config, retrain, runGPU, runNN):
             save_arrays(container, model_name, year, ytest_hat, savekey='ytest_hat')
             save_arrays(container, model_name, year, ytest, savekey='ytest')
 
+            bcktst_df.loc[test_df.index, "predict"] = ytest_hat
+
             save_year_res(model_name, year, cal_r2(yv, yv_hat), cal_r2(ytest, ytest_hat))
         else:
             yt_hat = model_fit.predict(Xt).reshape(-1, 1)

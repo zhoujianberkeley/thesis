@@ -52,16 +52,16 @@ def intiConfig():
               'runOLS3+H':0,
                 "runOLS":0,
                 "runOLSH":0,
-                "runENET":0,
+                "runENET":1,
                 "runPLS":0,
                 "runPCR":0,
                 "runNN1":0,
-                "runNN2":0,
-                "runNN3":0,
+                "runNN2":1,
+                "runNN3":1,
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
-                "runRF": 1,
+                "runRF": 0,
                 "runGBRT": 0,
                 "runGBRT2": 0
               }
@@ -75,7 +75,8 @@ for config_key in config.keys():
         continue
     print(f"running model {config_key}")
     # data index should be ticker date
-    runNN = sum([config[i] for i in [i for i in config.keys() if re.match("runNN[0-9]", i)]])
+    # runNN = sum([config[i] for i in [i for i in config.keys() if re.match("runNN[0-9]", i)]])
+    runNN = "runNN" in config_key[:5]
     if runNN and runGPU:
         device_name = tf.test.gpu_device_name()
         if device_name != '/device:GPU:0' and platform.system() == 'linus':
@@ -126,7 +127,7 @@ for config_key in config.keys():
     with open(Path('code') / model_name / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
-    bcktst_df.set_index(["ticker", "date"]).dropna().to_csv(Path('code') / model_name / "predictions.csv")
+    bcktst_df.dropna().to_csv(Path('code') / model_name / "predictions.csv")
     config[config_key] = 0
 
 #%%
