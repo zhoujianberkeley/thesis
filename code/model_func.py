@@ -34,7 +34,7 @@ fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 
 #%%
-def runModel(data, config, retrain, runGPU, runNN):
+def runModel(data, config, retrain, runGPU, runNN, frequency):
     container = {}
 
     if runNN:
@@ -42,12 +42,20 @@ def runModel(data, config, retrain, runGPU, runNN):
         nn_oos_r2 = []
 
     bcktst_df = data[['Y']]
-    for year in tqdm(pd.date_range('20131231', '20200831', freq='M')):
+    if frequency == 'M':
+        date_range = pd.date_range('20131231', '20200831', freq='M')
+    elif frequency == 'Q':
+        date_range = pd.date_range('20131231', '20200831', freq='Q')
+
+    for year in tqdm(date_range):
         year = datetime.datetime.strftime(year, "%Y-%m")
 
         p_t = ['1900-01', str(year)] # period of training
         p_v = [add_months(year, 1), add_months(year, 3)] # period of valiation
-        p_test = [add_months(year, 4), add_months(year, 4)]
+        if frequency == 'M':
+            p_test = [add_months(year, 4), add_months(year, 4)]
+        elif frequency == 'Q':
+            p_test = [add_months(year, 4), add_months(year, 6)]
 
         _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=0))
         _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=0))

@@ -45,6 +45,7 @@ data = data[list(data.iloc[:, :88].columns) + ind_ftr + mcr_ftr + ["Y"]]
 # %%
 runGPU = 0
 retrain = 0
+runfreq = "M"
 
 # train30% validation20% test50% split
 def intiConfig():
@@ -89,7 +90,7 @@ for config_key in config.keys():
     #     p_v = [str(year+1), str(year + 1)] # period of valiation
     #     p_test = [str(year + 2), str(year+2)]
     if runNN:
-        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN)
+        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN, runfreq)
 
         r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
         r2is = r2v
@@ -107,7 +108,7 @@ for config_key in config.keys():
         with open(model_dir / "testing_score.pkl", "wb") as f:
             pickle.dump(d, f)
     else:
-        model_name, bcktst_df, container = runModel(data, config, retrain, runGPU, runNN)
+        model_name, bcktst_df, container = runModel(data, config, retrain, runGPU, runNN, runfreq)
 
         r2is, r2is_df = cal_model_r2(container, model_name, set_type="is")
         print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))

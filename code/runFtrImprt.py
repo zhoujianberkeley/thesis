@@ -41,10 +41,7 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :88].columns) + ind_ftr + mcr_ftr + ["Y"]]
-XX, yy = split(data)
 
-print(XX.shape)
-print(yy.shape)
 #%%
 runGPU = 0
 retrain = 0
@@ -58,13 +55,13 @@ def intiConfig():
                 "runENET":0,
                 "runPLS":0,
                 "runPCR":0,
-                "runNN1":0,
-                "runNN2":0,
+                "runNN1":1,
+                "runNN2":1,
                 "runNN3":0,
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
-                "runRF": 1,
+                "runRF": 0,
                 "runGBRT": 0,
                 "runGBRT2": 0
               }
@@ -81,7 +78,7 @@ def cal_importance(data, config):
     print(f"{model_name} rm all facotr R2: ", "{0:.3%}".format(r2oos))
     res = res.append({"factor":"all factor", "r2":r2oos}, ignore_index=True)
 
-    for fctr in tqdm([i for i in data.columns if i.startswith("Factor")][:1]):
+    for fctr in tqdm([i for i in data.columns if i.startswith("Factor")]):
         databk = data.copy()
         databk.loc[:, fctr] = 0
 
@@ -92,12 +89,18 @@ def cal_importance(data, config):
         res = res.append({"factor":fctr, "r2":r2oos}, ignore_index=True)
     return res, model_name
 
+for config_key in config.keys():
+    if config[config_key] == 0:
+        continue
+    print(f"running feature importance for {config_key}")
 
-ftr_imp, model_name = cal_importance(data, config)
-ftr_imp = ftr_imp.set_index('factor')
-ftr_imp['r2 reduction'] = ftr_imp.loc["all factor", "r2"] - ftr_imp["r2"]
-ftr_imp['r2 reduct max'] = np.maximum(ftr_imp['r2 reduction'], 0)
-ftr_imp['r2 reduction pct'] = ftr_imp['r2 reduction']/ftr_imp['r2 reduct max'].sum()
-ftr_imp = ftr_imp.sort_values(by='r2 reduction pct', ascending=False)
-ftr_imp.to_csv(Path("code", f"{model_name}")/f"feature_importance_{model_name}.csv")
-print(ftr_imp)
+    ftr_imp, model_name = cal_importance(data, config)
+    ftr_imp = ftr_imp.set_index('factor')
+    ftr_imp['r2 reduction'] = ftr_imp.loc["all factor", "r2"] - ftr_imp["r2"]
+    ftr_imp['r2 reduct max'] = np.maximum(ftr_imp['r2 reduction'], 0)
+    ftr_imp['r2 reduction pct'] = ftr_imp['r2 reduction']/ftr_imp['r2 reduct max'].sum()
+    ftr_imp = ftr_imp.sort_values(by='r2 reduction pct', ascending=False)
+    ftr_imp.to_csv(Path("code", f"{model_name}")/f"feature_importance_{model_name}.csv")
+    print(ftr_imp)
+
+    config[config_key] = 0

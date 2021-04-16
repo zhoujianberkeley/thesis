@@ -8,7 +8,7 @@ from utils_stra import setwd
 # from HFBacktest1 import HFBacktest, HFSingleFactorBacktest
 setwd()
 #%%
-model_name = "NN2"
+model_name = "NN3"
 
 close = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data')
 close.index.names = ["ticker", "date"]
