@@ -50,14 +50,16 @@ retrain = 0
 def intiConfig():
     config = {"runOLS3":0,
               'runOLS3+H':0,
+              'runOLS5':1,
+              'runOLS5+H': 1,
                 "runOLS":0,
                 "runOLSH":0,
-                "runENET":0,
+                "runENET":1,
                 "runPLS":0,
                 "runPCR":0,
-                "runNN1":1,
+                "runNN1":0,
                 "runNN2":1,
-                "runNN3":0,
+                "runNN3":1,
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
@@ -66,6 +68,7 @@ def intiConfig():
                 "runGBRT2": 0
               }
     return config
+
 
 config = intiConfig()
 

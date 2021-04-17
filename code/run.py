@@ -4,25 +4,13 @@ import pandas as pd
 from pathlib import Path
 import platform
 import logging
-from multiprocessing import cpu_count
 import numpy as np
-from sklearn.linear_model import HuberRegressor, LinearRegression
-from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import GradientBoostingRegressor
 import pickle
-import re
-import time
-from tqdm import tqdm
 import tensorflow as tf
-import datetime
 import matplotlib.pyplot as plt
-import joblib
 
-from utils_stra import split, cal_r2, cal_normal_r2, cal_model_r2
-from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
-from utils_stra import add_months, gen_model_pt, save_model
-from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn
+from utils_stra import cal_model_r2
+from utils_stra import save_res, setwd
 from model_func import runModel
 
 setwd()
@@ -43,22 +31,24 @@ mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :88].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
 # %%
-runGPU = 0
-retrain = 0
-runfreq = "M"
+runGPU = 1
+retrain = 1
+runfreq = "Q"
 
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":0,
-              'runOLS3+H':0,
+    config = {"runOLS3":1,
+              'runOLS3+H':1,
+              'runOLS5':1,
+              'runOLS5+H': 1,
                 "runOLS":0,
                 "runOLSH":0,
-                "runENET":1,
+                "runENET":0,
                 "runPLS":0,
                 "runPCR":0,
                 "runNN1":0,
-                "runNN2":1,
-                "runNN3":1,
+                "runNN2":0,
+                "runNN3":0,
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,

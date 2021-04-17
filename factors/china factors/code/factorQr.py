@@ -36,14 +36,11 @@ if _load:
     Quarter_data = todate(Quarter_data, 'end_date', format='%Y-%m-%d')
     # s_date = date(2009, 12, 31)
     # Quarter_data = Quarter_data[Quarter_data['end_date'] > pd.to_datetime(s_date)]
+    Quarter_data = Quarter_data.sort_values(['ts_code', 'end_date'])
     Quarter_data.index = range(len(Quarter_data))
     Quarter_data.to_pickle(Path('data', 'buffer', 'QuarterFactorPrcd.pkl'))
 else:
     Quarter_data = pd.read_pickle(Path('data', 'buffer', 'QuarterFactorPrcd.pkl'))
-
-# tmp = Quarter_data.set_index(['ts_code', 'end_date'])
-# print(tmp.index.__len__())
-# print(tmp.index.unique().__len__())
 
 
 # %%
@@ -62,7 +59,7 @@ data: tushare API balancesheet_vip cashflow_vip income_vip
 fn = 'Factor01_acc'
 f1 = (Quarter_data['ebit_x'] - Quarter_data['n_cashflow_act'])/Quarter_data['total_assets']
 Quarter_data[fn] = f1
-save_f(f1, fn)
+# save_f(f1, fn)
 
 
 # %%
@@ -73,7 +70,7 @@ Absolute value of acc
 fn = 'Factor02_absacc'
 f2 = Quarter_data['Factor01_acc'].abs()
 Quarter_data[fn] = f2
-save_f(f2, fn)
+# save_f(f2, fn)
 
 # %%
 '''
@@ -93,7 +90,14 @@ Quarter_data = Quarter_data.merge(list_date[['ts_code', 'list_date']], on='ts_co
 f4 = Quarter_data['end_date'] - Quarter_data['list_date']
 Quarter_data[fn] = f4
 
-save_f(f4, fn)
+# %%
+'''
+5.agr -Annual 
+Annual percent change in total assets(at)
+(a_t-a_t-1)/a_t-1
+total_assets
+'''
+Quarter_data['Factor05_agr'] = Quarter_data.groupby(['ts_code'])['total_assets'].pct_change()
 
 # %%
 '''

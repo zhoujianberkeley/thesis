@@ -10,16 +10,16 @@ os.system('python code/factorQr.py')
 toe = time.time()
 print("process quarter data : ", toe-tos)
 
-print("process month data")
+print("process month factor")
 os.system('python code/factorMcr.py')
 
-print("process week data")
+print("process week factor")
 os.system('python code/factorWky.py')
 
-print("process daily data")
+print("process daily factor")
 os.system('python code/loadDay.py')
 
-print("process macro data")
+print("process macro factor")
 os.system('python code/factorMcr.py')
 
 print("aggregate all data")

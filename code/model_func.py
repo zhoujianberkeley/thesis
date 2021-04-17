@@ -2,22 +2,13 @@
 import os
 import pandas as pd
 from pathlib import Path
-import platform
 import logging
-from multiprocessing import cpu_count
 import numpy as np
 from sklearn.linear_model import HuberRegressor, LinearRegression
 from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import GradientBoostingRegressor
-import pickle
-import re
-import time
 from tqdm import tqdm
-import tensorflow as tf
 import datetime
 import matplotlib.pyplot as plt
-import joblib
 
 from utils_stra import split, cal_r2, cal_normal_r2, cal_model_r2
 from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
@@ -65,8 +56,8 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
 
         #OLS
         if config['runOLS3']:
-            model_name = "OLS3"
-            data_ols3 = data[['Factor46_mom12m', 'Factor51_mve', 'Factor09_bm', 'Y']]
+            model_name = "OLS3" + f" {frequency}"
+            data_ols3 = data[['Factor46_mom12m', 'Factor07_beta', 'Factor51_mve', 'Factor09_bm', 'Y']]
 
             _Xt, _yt = split(data_ols3.loc(axis=0)[:, p_t[0]:p_t[1]])
             _Xv, _yv = split(data_ols3.loc(axis=0)[:, p_v[0]:p_v[1]])
@@ -75,11 +66,11 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             Xt = np.vstack((_Xt, _Xv))
             yt = np.vstack((_yt, _yv))
             Xtest, ytest = _Xtest, _ytest
-            model_fit = LinearRegression().fit(Xt, yt)
+            model_fit = LinearRegression().fit(Xt, yt.reshape(-1, ))
+
         elif config['runOLS3+H']:
-            from sklearn.linear_model import HuberRegressor
-            model_name = "OLS3+H"
-            data_ols3 = data[['Factor46_mom12m', 'Factor51_mve', 'Factor09_bm', 'Y']]
+            model_name = "OLS3+H" + f" {frequency}"
+            data_ols3 = data[['Factor46_mom12m', 'Factor07_beta', 'Factor51_mve', 'Factor09_bm', 'Y']]
 
             _Xt, _yt = split(data_ols3.loc(axis=0)[:, p_t[0]:p_t[1]])
             _Xv, _yv = split(data_ols3.loc(axis=0)[:, p_v[0]:p_v[1]])
@@ -89,9 +80,34 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             yt = np.vstack((_yt, _yv))
             Xtest, ytest = _Xtest, _ytest
             model_fit = HuberRegressor(epsilon=3).fit(Xt, yt.reshape(-1, ))
+        elif config['runOLS5']:
+            model_name = "OLS5" + f" {frequency}"
+            data_ols5 = data[['Factor46_mom12m', 'Factor07_beta', 'Factor51_mve', 'Factor09_bm', 'Factor76_roeq', 'Factor05_agr', 'Y']]
+
+            _Xt, _yt = split(data_ols5.loc(axis=0)[:, p_t[0]:p_t[1]])
+            _Xv, _yv = split(data_ols5.loc(axis=0)[:, p_v[0]:p_v[1]])
+            _Xtest, _ytest = split(data_ols5.loc(axis=0)[:, p_test[0]:p_test[1]])
+
+            Xt = np.vstack((_Xt, _Xv))
+            yt = np.vstack((_yt, _yv))
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = LinearRegression().fit(Xt, yt.reshape(-1, ))
+
+        elif config['runOLS5+H']:
+            model_name = "OLS5+H" + f" {frequency}"
+            data_ols5 = data[['Factor46_mom12m', 'Factor07_beta', 'Factor51_mve', 'Factor09_bm', 'Factor76_roeq', 'Factor05_agr', 'Y']]
+
+            _Xt, _yt = split(data_ols5.loc(axis=0)[:, p_t[0]:p_t[1]])
+            _Xv, _yv = split(data_ols5.loc(axis=0)[:, p_v[0]:p_v[1]])
+            _Xtest, _ytest = split(data_ols5.loc(axis=0)[:, p_test[0]:p_test[1]])
+
+            Xt = np.vstack((_Xt, _Xv))
+            yt = np.vstack((_yt, _yv))
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = HuberRegressor(epsilon=3).fit(Xt, yt.reshape(-1, ))
 
         elif config['runOLS']:
-            model_name= "OLS"
+            model_name= "OLS" + f" {frequency}"
             Xt = np.vstack((_Xt, _Xv))
             yt = np.vstack((_yt, _yv))
             Xtest, ytest = _Xtest, _ytest
@@ -99,7 +115,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             save_model(model_name, year, model_fit)
 
         elif config['runOLSH']:  # OLS + H
-            model_name = "OLSH"
+            model_name = "OLSH" + f" {frequency}"
             Xt = np.vstack((_Xt, _Xv))
             yt = np.vstack((_yt, _yv))
             Xtest, ytest = _Xtest, _ytest
@@ -107,7 +123,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
 
         elif config['runENET']:
             from sklearn.linear_model import ElasticNet
-            model_name = "ENET"
+            model_name = "ENET" + f" {frequency}"
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
@@ -139,7 +155,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
 
         elif config['runPLS']:
             from sklearn.cross_decomposition import PLSRegression
-            model_name = "PLS"
+            model_name = "PLS" + f" {frequency}"
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
@@ -170,7 +186,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             print(f"{model_name} oss r2 in {year}:", best_perfor)
 
         elif config['runPCR']:
-            model_name = "PCR"
+            model_name = "PCR" + f" {frequency}"
             # mtrain = np.mean(_yt)
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
@@ -248,7 +264,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             elif config["runNN6"]:
                 i = 6
 
-            model_name = f"NN{i}"
+            model_name = f"NN{i}" + f" {frequency}"
 
             nn_is_preds = []
             nn_valid_preds = []
@@ -328,7 +344,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
                 nn_oos_preds.append(oos_pred)
         elif config['runRF']:
             logger.info(year)
-            model_name = "RF"
+            model_name = "RF" + f" {frequency}"
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
@@ -338,7 +354,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
                 model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
                 save_model(model_name, year, model_fit)
         elif config['runGBRT']:
-            model_name = "GBRT"
+            model_name = "GBRT+H" + f" {frequency}"
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
@@ -351,7 +367,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
                 model_pt = gen_model_pt(model_name, year)
                 model_fit.save_model(model_pt)
         elif config['runGBRT2']:
-            model_name = "GBRT2"
+            model_name = "GBRT+l2" + f" {frequency}"
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
