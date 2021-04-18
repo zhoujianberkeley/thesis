@@ -28,24 +28,24 @@ data = pd.read_hdf(p, key="data")
 
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
-data = data[list(data.iloc[:, :88].columns) + ind_ftr + mcr_ftr + ["Y"]]
+data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
 # %%
 runGPU = 1
 retrain = 1
-runfreq = "Q"
+runfreq = "M"
 
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":1,
-              'runOLS3+H':1,
-              'runOLS5':1,
-              'runOLS5+H': 1,
+    config = {"runOLS3":0,
+              'runOLS3+H':0,
+              'runOLS5':0,
+              'runOLS5+H': 0,
                 "runOLS":0,
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
-                "runPCR":0,
+                "runPCR":1,
                 "runNN1":0,
                 "runNN2":0,
                 "runNN3":0,

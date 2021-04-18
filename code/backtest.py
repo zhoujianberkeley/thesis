@@ -8,26 +8,11 @@ from utils_stra import setwd
 # from HFBacktest1 import HFBacktest, HFSingleFactorBacktest
 setwd()
 #%%
-model_name = "NN3"
-
-close = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data')
-close.index.names = ["ticker", "date"]
-ml_fctr = pd.read_csv(Path('code') / model_name / "predictions.csv").set_index(["ticker", "date"])
-ml_fctr = ml_fctr.dropna(how='all')
-bt_df = close.merge(ml_fctr, on=["ticker", "date"], how="right")
-
-close = bt_df['close'].unstack(level=0)
-change = close.pct_change()
-# close.index = close.index.astype(str)
-
-ml_fctr = bt_df['predict'].unstack(level=0)
 # ml_fctr.index = ml_fctr.index.astype(str)
 # ml_fctr = ml_fctr.replace(np.inf, 10000000)
 # ml_fctr = ml_fctr.replace(-np.inf, -10000000)
 # ml_fctr = ml_fctr.sub(np.nanmean(ml_fctr, axis=1), axis=0).divide(np.nanstd(ml_fctr), axis=0)
 
-
-# %%
 def decile10(date_df, rtrn_df):
     date_df = date_df.T.dropna()
     date = date_df.columns[0]
@@ -36,7 +21,6 @@ def decile10(date_df, rtrn_df):
 
     id = date_df.iloc[:thrsd, ].index
     d10 = rtrn_df.T.loc[id, date].mean()
-
     return d10
 
 def decile1(date_df, rtrn_df):
@@ -48,27 +32,61 @@ def decile1(date_df, rtrn_df):
     id = date_df.iloc[-thrsd:, ].index
     d1 = rtrn_df.T.loc[id, date].mean()
     return d1
-    # return pd.DataFrame.from_dict({"decile 10":[d10],
-    #                                 "decile 1":[d1]}, orient="index", columns=[date])
-
-bt_res = pd.DataFrame()
-bt_res["decile 10"] = ml_fctr.groupby('date').apply(lambda x: decile10(x, change)).fillna(0)
-bt_res["decile 1"] = ml_fctr.groupby('date').apply(lambda x: decile1(x, change)).fillna(0)
 
 
-bt_res[["d10 rt", "d1 rt"]] = (bt_res[["decile 10", "decile 1"]]+1).cumprod()
-bt_res["ls"] = bt_res["decile 10"] - bt_res["decile 1"]
-bt_res["ls_return"] = (bt_res["ls"]+1).cumprod()
+def backtest(model_name, factor, change_df):
+    bt_res = pd.DataFrame()
+    bt_res[f"decile 10"] = factor.groupby('date').apply(lambda x: decile10(x, change_df)).fillna(0)
+    bt_res["decile 1"] = factor.groupby('date').apply(lambda x: decile1(x, change_df)).fillna(0)
 
-bt_res[['d10 rt', 'd1 rt', 'ls_return']].plot()
-# bt_res[['d10 rt', 'd1 rt']].plot()
+
+    bt_res[f"{model_name} d10 rt"] = (bt_res["decile 10"]+1).cumprod() - 1
+
+    bt_res[f"{model_name} d1 rt"] = -((-bt_res["decile 1"] + 1).cumprod()) + 1
+
+    bt_res["ls"] = bt_res["decile 10"] - bt_res["decile 1"]
+    bt_res[f"{model_name} ls_return"] = (bt_res["ls"]+1).cumprod() - 1
+
+    rtrn = bt_res['ls']
+    print(f"sharpe ratio {model_name}", round(np.sqrt(12)*rtrn.mean()/rtrn.std(), 2))
+
+    bt_res_slice = bt_res[[f"{model_name} d10 rt", f"{model_name} d1 rt", f'{model_name} ls_return']]
+    bt_res_slice.plot()
+    plt.show()
+
+    return bt_res_slice
+# %%
+close_raw = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data')
+close_raw.index.names = ["ticker", "date"]
+
+res = []
+for model_name in ["NN1", "RF", "ENET"]:
+    ml_fctr = pd.read_csv(Path('code') / model_name / "predictions.csv").set_index(["ticker", "date"])
+    ml_fctr = ml_fctr.dropna(how='all')
+    bt_df = close_raw.merge(ml_fctr, on=["ticker", "date"], how="right")
+    close = bt_df['close'].unstack(level=0)
+    change = close.pct_change()
+
+
+    ml_fctr = bt_df['predict'].unstack(level=0)
+
+    res.append(backtest(model_name, ml_fctr, change))
+res_df = pd.concat(res, axis=1)
+
+# add benchmark
+bm = pd.read_excel(Path("data")/"SHCI.xlsx",usecols=range(6)).set_index('date')
+bm.index = pd.to_datetime(bm.index) + pd.tseries.offsets.MonthEnd(0)
+bm.index = bm.index.astype(str)
+bm = bm.reindex(res_df.index)
+res_df["SHCI"] = (bm[['pct_change']].fillna(0) + 1).cumprod()-1
+
+res_df[[i for i in res_df.columns if "ls_return" in i] + ["SHCI"]].plot()
 plt.show()
 
-rtrn = bt_res['ls']
+res_df[[i for i in res_df.columns if "ls_return" not in i]].plot()
+plt.show()
 
-print(f"sharpe ratio {model_name}", round(np.sqrt(12)*rtrn.mean()/rtrn.std(), 2))
-
-
+res_df.to_excel(Path("thesis")/ "backtest.xlsx")
 # %%
 # analysis = HFBacktest(close, )
 # analysis.addFactor('ml_factor', ml_fctr)

@@ -40,7 +40,7 @@ data = pd.read_hdf(p, key="data")
 
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
-data = data[list(data.iloc[:, :88].columns) + ind_ftr + mcr_ftr + ["Y"]]
+data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
 #%%
 runGPU = 0
