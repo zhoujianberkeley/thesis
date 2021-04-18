@@ -76,7 +76,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
             tree_m.fit(Xt, yt.reshape(-1, ))
         elif runGBRT:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
-                                      objective='reg:pseudohubererror', random_state=0, n_jobs=cpu_count()-5, tree_method='gpu_hist', gpu_id=0)
+                                      objective='reg:pseudohubererror', random_state=0, tree_method='gpu_hist')
 
             tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
                                       eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
@@ -87,7 +87,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
             #                                    subsample=p['subsample'], random_state=0)
         elif runGBRT2:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
-                                      objective='reg:squarederror', random_state=0, n_jobs=cpu_count()-5)
+                                      objective='reg:squarederror', random_state=0, tree_method='gpu_hist')
 
             tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
                                       eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
