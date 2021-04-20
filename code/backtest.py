@@ -1,5 +1,6 @@
 #%%
 import numpy as np
+import os
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -86,7 +87,10 @@ plt.show()
 res_df[[i for i in res_df.columns if "ls_return" not in i]].plot()
 plt.show()
 
-res_df.to_excel(Path("thesis")/ "backtest.xlsx")
+save_dir = Path("thesis")
+if not os.path.exist(save_dir):
+    os.mkdir(save_dir)
+res_df.to_excel(save_dir / "backtest.xlsx")
 # %%
 # analysis = HFBacktest(close, )
 # analysis.addFactor('ml_factor', ml_fctr)
