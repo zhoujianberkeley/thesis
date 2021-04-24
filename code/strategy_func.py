@@ -44,7 +44,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     assert runRF + runGBRT + runGBRT2 == 1
     if runRF:
         model_name = "Random Forest"
-        max_depth = np.arange(2, 7, 2)
+        max_depth = np.arange(2, 9, 2)
         max_features = [Xt.shape[1]//3]
         # max_depth = np.arange(1, 3)
         # max_features = [3, 5, 10]

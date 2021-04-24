@@ -47,7 +47,7 @@ runGPU = 0
 retrain = 0
 
 # train30% validation20% test50% split
-def intiConfig():
+def initConfig():
     config = {"runOLS3":0,
               'runOLS3+H':0,
               'runOLS5':1,
@@ -70,9 +70,9 @@ def intiConfig():
     return config
 
 
-config = intiConfig()
+config = initConfig()
 
-def cal_importance(data, config):
+def cal_importance(data, config, method):
     runNN = sum([config[i] for i in [i for i in config.keys() if re.match("runNN[0-9]", i)]])
     res = pd.DataFrame(columns=['factor', 'r2'])
 
@@ -83,7 +83,12 @@ def cal_importance(data, config):
 
     for fctr in tqdm([i for i in data.columns if i.startswith("Factor")]):
         databk = data.copy()
-        databk.loc[:, fctr] = 0
+        if method == "zero":
+            databk.loc[:, fctr] = 0
+        elif method == "permutation":
+            databk.loc[:, fctr] = databk.loc[:, fctr].shuffle
+        else:
+            raise NotImplementedError()
 
         model_name, container = runFeatureImportance(databk, config, runNN)
 

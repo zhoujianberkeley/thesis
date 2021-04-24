@@ -6,7 +6,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pickle
 from utils_stra import setwd
-# from HFBacktest1 import HFBacktest, HFSingleFactorBacktest
 setwd()
 #%%
 # ml_fctr.index = ml_fctr.index.astype(str)
@@ -65,9 +64,11 @@ for model_name in ["NN1", "RF", "ENET"]:
     ml_fctr = pd.read_csv(Path('code') / model_name / "predictions.csv").set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')
     bt_df = close_raw.merge(ml_fctr, on=["ticker", "date"], how="right")
+
     close = bt_df['close'].unstack(level=0)
     change = close.pct_change()
 
+    change = bt_df['Y'].unstack(level=0)
 
     ml_fctr = bt_df['predict'].unstack(level=0)
 
@@ -88,7 +89,7 @@ res_df[[i for i in res_df.columns if "ls_return" not in i]].plot()
 plt.show()
 
 save_dir = Path("thesis")
-if not os.path.exist(save_dir):
+if not os.path.exists(save_dir):
     os.mkdir(save_dir)
 res_df.to_excel(save_dir / "backtest.xlsx")
 # %%
@@ -97,8 +98,5 @@ res_df.to_excel(save_dir / "backtest.xlsx")
 # analysis.addFactor()
 # analysis.orthogonalizeFactors()
 # analysis.analyzeSingleFactor()
-#%%
-# bm = pd.DataFrame(index=ml_fctr.index, columns=ml_fctr.columns).fillna(0)
-# analysis2 = HFSingleFactorBacktest('ml_factor',ml_fctr, close, bm)
-# analysis2.analyze()
+
 #%%

@@ -21,7 +21,15 @@ utils.setdir_fctr()
 s_path = Path("_saved_factors")
 if not os.path.exists(s_path):
     os.mkdir(s_path)
+# %%
+# use split-adjusted share prices
+Monthly_Quotation_sa = utils.cleandf(pd.read_csv(Path('data', 'buffer', 'MonFactorPrcd_sa.csv')))
+Monthly_Quotation_sa = utils.todate(Monthly_Quotation_sa, 'end_date', format='%Y-%m-%d')
+Monthly_Quotation_sa.index = range(len(Monthly_Quotation_sa))
 
+Monthly_Quotation_sa['monthly_return'] = Monthly_Quotation_sa.groupby(['ts_code'])['close'].pct_change()
+Monthly_Quotation_sa[['ts_code', 'end_date', 'monthly_return']].to_csv(Path('_saved_factors', 'MonY.csv'), index=False)
+Monthly_Quotation_sa[['ts_code', 'end_date', 'close']].to_csv(Path('_saved_factors', 'MonClose.csv'), index=False)
 
 # %%
 # load data
@@ -33,10 +41,6 @@ if _load:
     Monthly_Quotation.to_pickle(Path('data', 'buffer', 'MonFactorPrcd.pkl'))
 else:
     Monthly_Quotation = pd.read_pickle(Path('data', 'buffer', 'MonFactorPrcd.pkl'))
-
-Monthly_Quotation['monthly_return'] = Monthly_Quotation.groupby(['ts_code'])['close'].pct_change()
-Monthly_Quotation[['ts_code', 'end_date', 'monthly_return']].to_csv(Path('_saved_factors', 'MonY.csv'), index=False)
-Monthly_Quotation[['ts_code', 'end_date', 'close']].to_csv(Path('_saved_factors', 'MonClose.csv'), index=False)
 
 Ind_fctr = pd.get_dummies(Monthly_Quotation.set_index(['ts_code', 'end_date'])['industry'], prefix='Ind').reset_index()
 Ind_fctr.to_csv(Path('_saved_factors', 'IndFactor.csv'), index=False)

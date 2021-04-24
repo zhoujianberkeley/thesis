@@ -13,6 +13,7 @@ import tushare as ts
 ts.set_token(token)
 pro = ts.pro_api()
 
+
 _paths = os.getcwd().split('/')
 if _paths[-1] == "code":
     os.chdir("..")
@@ -26,6 +27,26 @@ Monthly_Quotation = pd.read_csv(Path('data', '月行情.csv'),encoding='gbk')
 Monthly_Quotation.rename(columns={'代码':'ts_code','简称':'name','日期':'trade_date', '前收盘价(元)':'pre_close', '开盘价(元)':'open', '最高价(元)':'high', '最低价(元)':'low',
       '收盘价(元)':'close', '成交量(股)':'vol', '成交金额(元)':'amount', '涨跌(元)':'change', '涨跌幅(%)':'pct_chg', '均价(元)':'avg_price', '换手率(%)':'turnover',
       '总市值(元)':'market_value', '总股本(股)':'total_share', '市盈率':'PE', '市净率':'PB', '市销率':'PS', '市现率':'PCF',}, inplace=True)
+# %%
+# split-adjusted price
+Monthly_Quotation_sa = pd.read_csv(Path('data', '月行情后复权.csv'),encoding='utf_8_sig')
+Monthly_Quotation_sa.rename(columns={'代码':'ts_code','简称':'name','日期':'trade_date', '前收盘价(元)':'pre_close', '开盘价(元)':'open', '最高价(元)':'high', '最低价(元)':'low',
+      '收盘价(元)':'close', '成交量(股)':'vol', '成交金额(元)':'amount', '涨跌(元)':'change', '涨跌幅(%)':'pct_chg', '均价(元)':'avg_price', '换手率(%)':'turnover',
+      '总市值(元)':'market_value', '总股本(股)':'total_share', '市盈率':'PE', '市净率':'PB', '市销率':'PS', '市现率':'PCF',}, inplace=True)
+
+Monthly_Quotation_sa = Monthly_Quotation_sa[~(Monthly_Quotation_sa.trade_date.isna()==True)]
+date = [datetime.strptime(i, "%Y/%m/%d")  for i in Monthly_Quotation_sa.trade_date.values]
+Monthly_Quotation_sa.loc[:, 'trade_date'] = date
+
+Monthly_Quotation_sa['end_date']=0  #把月份中最后一天交易日统一转化为月末 Turn the time stamp to the end of the month
+for ii in tqdm(range(len(Monthly_Quotation_sa))):
+    Monthly_Quotation_sa.loc[ii,'trade_date'].to_period('M').to_timestamp('M')
+Monthly_Quotation_sa['end_date'] = Monthly_Quotation_sa.trade_date + pd.offsets.MonthEnd(0)
+
+
+assert Monthly_Quotation_sa.drop_duplicates(['ts_code','end_date']).shape == Monthly_Quotation_sa.shape
+Monthly_Quotation_sa = Monthly_Quotation_sa.sort_values(['ts_code','end_date'])
+Monthly_Quotation_sa.to_csv(Path('data', 'buffer', "MonFactorPrcd_sa.csv"), index=False)
 
 # %%
 '''

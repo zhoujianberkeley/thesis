@@ -36,7 +36,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
     if frequency == 'M':
         date_range = pd.date_range('20131231', '20200831', freq='M')
     elif frequency == 'Q':
-        date_range = pd.date_range('20131231', '20200831', freq='Q')
+        date_range = pd.date_range('20131231', '20200631', freq='Q')
 
     for year in tqdm(date_range):
         year = datetime.datetime.strftime(year, "%Y-%m")
@@ -187,6 +187,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
 
         elif config['runPCR']:
             model_name = "PCR" + f" {frequency}"
+            pca_name = "PCA" + f" {frequency}"
             # mtrain = np.mean(_yt)
             Xt, yt = _Xt, _yt
             Xv, yv = _Xv, _yv
@@ -241,7 +242,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             ytest_hat = model_fit.predict(Xtest)
             best_perfor = cal_r2(ytest, ytest_hat)
             print(f"{model_name} oss r2 in {year}:", best_perfor)
-            save_model("PCA", year, pca)
+            save_model(pca_name, year, pca)
             save_model(model_name, year, model_fit)
 
         elif runNN:
@@ -414,6 +415,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
         return model_name, bcktst_df, container
 
 # %%
+
 def runFeatureImportance(data, config, runNN):
     container = {}
 
@@ -422,6 +424,7 @@ def runFeatureImportance(data, config, runNN):
 
         p_test = [add_months(year, 4), add_months(year, 4)]
         _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
+
         if False:
             pass
         elif config['runOLS']:
