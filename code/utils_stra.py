@@ -1,9 +1,11 @@
+import datetime
 import os
 import pandas as pd
 from pathlib import Path
 import logging
 import numpy as np
 import joblib
+from functools import reduce
 
 
 def setwd():
@@ -129,19 +131,28 @@ def save_year_res(model_name, year, r2is, r2oos):
     res.to_csv(dir)
 
 
-def gen_model_pt(name, yr):
-    model_dir = Path("code", f"{name}")
+def gen_model_pt(name, yr, pre_dir, **kwargs):
+    if pre_dir == "":
+        model_dir = Path("code", f"{name}")
+    else:
+        model_dir = Path("code", pre_dir, f"{name}")
+
     if not os.path.exists(model_dir):
-        os.mkdir(model_dir)
-    model_pt = model_dir / f"{yr}_model.joblib"
+        os.makedirs(model_dir)
+
+    if "runNN" in kwargs and kwargs["runNN"]:
+        model_num = kwargs["model_num"]
+        model_pt = model_dir / f"{yr}_iter{model_num}_bm.hdf5"
+    else:
+        model_pt = model_dir / f"{yr}_model.joblib"
     return model_pt
 
-def load_model(name, yr):
-    model_pt = gen_model_pt(name, yr)
+def _load_model(name, yr, pre_dir):
+    model_pt = gen_model_pt(name, yr, pre_dir)
     return joblib.load(model_pt)
 
-def save_model(name, yr, to_save):
-    model_pt = gen_model_pt(name, yr)
+def _save_model(name, yr, to_save, pre_dir):
+    model_pt = gen_model_pt(name, yr, pre_dir)
     joblib.dump(to_save, model_pt)
 
 
@@ -172,6 +183,33 @@ def add_months(orig_date, n):
         orig_date = _add_one_month(orig_date)
     return orig_date
 
-_add_one_month("2015-12")
-add_months("2015-12", 13)
+def gen_filterIPO(data, file_pt):
+    if not os.path.exists(file_pt):
+        token = '654d36bf9bb086cb8c973e0f259e38c3efe24975386b7922e88a4cf2'
+        import tushare as ts
+        ts.set_token(token)
+        pro = ts.pro_api()
+        list_date = pro.stock_basic(exchange='',list_status='L')
+        list_date['list_date'] = pd.to_datetime(list_date['list_date'])
+        list_date = list_date.rename({"ts_code":"ticker"}, axis=1).set_index("ticker")[["list_date"]]
+        list_date.to_csv(file_pt)
+    else:
+        list_date = pd.read_csv(file_pt, index_col=0, parse_dates=['list_date'], infer_datetime_format=True)
+
+    tmp = data.merge(list_date, how="left", left_on="ticker", right_index=True)
+    tmp["age"] = tmp.index.get_level_values('date') - tmp['list_date']
+    filter_ipo = tmp["age"] > datetime.timedelta(days=180)
+    return filter_ipo
+
+def filter_data(input, fltr_lst):
+    res = []
+    for fltr_type in fltr_lst:
+        if fltr_type == "IPO":
+            filter_IPO = gen_filterIPO(input, file_pt=Path('.') / 'data' / "list_date.csv")
+            res.append(filter_IPO)
+        else:
+            raise NotImplementedError
+    filter = reduce(lambda x,y: x&y, res)
+    output = input[filter]
+    return output
 # %%

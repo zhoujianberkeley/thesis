@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 import pickle
-from utils_stra import setwd
+from utils_stra import setwd, filter_data
 setwd()
 #%%
 # ml_fctr.index = ml_fctr.index.astype(str)
@@ -23,6 +23,7 @@ def decile10(date_df, rtrn_df):
     d10 = rtrn_df.T.loc[id, date].mean()
     return d10
 
+
 def decile1(date_df, rtrn_df):
     date_df = date_df.T.dropna()
     date = date_df.columns[0]
@@ -38,7 +39,6 @@ def backtest(model_name, factor, change_df):
     bt_res = pd.DataFrame()
     bt_res[f"decile 10"] = factor.groupby('date').apply(lambda x: decile10(x, change_df)).fillna(0)
     bt_res["decile 1"] = factor.groupby('date').apply(lambda x: decile1(x, change_df)).fillna(0)
-
 
     bt_res[f"{model_name} d10 rt"] = (bt_res["decile 10"]+1).cumprod() - 1
 
@@ -58,11 +58,15 @@ def backtest(model_name, factor, change_df):
 # %%
 close_raw = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data')
 close_raw.index.names = ["ticker", "date"]
+close_raw.index = close_raw.index.set_levels(pd.to_datetime(close_raw.index.get_level_values('date')), level='date', verify_integrity=False)
 
 res = []
-for model_name in ["NN1", "RF", "ENET"]:
-    ml_fctr = pd.read_csv(Path('code') / model_name / "predictions.csv").set_index(["ticker", "date"])
+for model_name in ["NN1", "NN1Q"]:
+    # model_name = "NN1"
+    ml_fctr = pd.read_csv(Path('code') / model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')
+    ml_fctr = filter_data(ml_fctr, ["IPO"])
+
     bt_df = close_raw.merge(ml_fctr, on=["ticker", "date"], how="right")
 
     close = bt_df['close'].unstack(level=0)
@@ -73,12 +77,13 @@ for model_name in ["NN1", "RF", "ENET"]:
     ml_fctr = bt_df['predict'].unstack(level=0)
 
     res.append(backtest(model_name, ml_fctr, change))
+
 res_df = pd.concat(res, axis=1)
 
 # add benchmark
 bm = pd.read_excel(Path("data")/"SHCI.xlsx",usecols=range(6)).set_index('date')
 bm.index = pd.to_datetime(bm.index) + pd.tseries.offsets.MonthEnd(0)
-bm.index = bm.index.astype(str)
+# bm.index = bm.index.astype(str)
 bm = bm.reindex(res_df.index)
 res_df["SHCI"] = (bm[['pct_change']].fillna(0) + 1).cumprod()-1
 

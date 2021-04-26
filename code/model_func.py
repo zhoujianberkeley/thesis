@@ -1,4 +1,5 @@
 # %%
+from functools import partial
 import os
 import pandas as pd
 from pathlib import Path
@@ -10,9 +11,9 @@ from tqdm import tqdm
 import datetime
 import matplotlib.pyplot as plt
 
-from utils_stra import split, cal_r2, cal_normal_r2, cal_model_r2
+from utils_stra import split, cal_r2
 from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
-from utils_stra import add_months, gen_model_pt, load_model, save_model
+from utils_stra import add_months, gen_model_pt, _load_model, _save_model
 from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn
 
 setwd()
@@ -25,18 +26,20 @@ fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 
 #%%
-def runModel(data, config, retrain, runGPU, runNN, frequency):
+def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
     container = {}
+
+    save_model = partial(_save_model, pre_dir=pre_dir)
 
     if runNN:
         nn_valid_r2 = []
         nn_oos_r2 = []
 
-    bcktst_df = data[['Y']]
+    bcktst_df = data[['Y']].copy()
     if frequency == 'M':
         date_range = pd.date_range('20131231', '20200831', freq='M')
     elif frequency == 'Q':
-        date_range = pd.date_range('20131231', '20200631', freq='Q')
+        date_range = pd.date_range('20131231', '20200630', freq='Q')
 
     for year in tqdm(date_range):
         year = datetime.datetime.strftime(year, "%Y-%m")
@@ -273,11 +276,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
 
             model_cntn = []
             for model_num in range(5):
-                model_dir = Path("code", f"{model_name}")
-                if not os.path.exists(model_dir):
-                    os.mkdir(model_dir)
-                model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
-
+                model_pt = gen_model_pt(model_name, year, pre_dir, runNN=True, model_num=model_num)
                 if retrain:
                     tf.random.set_seed(model_num)
 
@@ -350,7 +349,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
             if not retrain:
-                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
+                model_fit = tree_model_fast(model_name, year, pre_dir, Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
             else:
                 model_fit = tree_model(Xt, yt, Xv, yv, runRF=True, runGBRT=False, runGBRT2=False)
                 save_model(model_name, year, model_fit)
@@ -360,12 +359,12 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
             if not retrain:
-                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
+                model_fit = tree_model_fast(model_name, year, pre_dir, Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
             else:
                 model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=True, runGBRT2=False)
                 # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
                 # The canonical way to save and restore models is by load_model and save_model.
-                model_pt = gen_model_pt(model_name, year)
+                model_pt = gen_model_pt(model_name, year, pre_dir)
                 model_fit.save_model(model_pt)
         elif config['runGBRT2']:
             model_name = "GBRT+l2" + f" {frequency}"
@@ -373,12 +372,12 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             Xv, yv = _Xv, _yv
             Xtest, ytest = _Xtest, _ytest
             if not retrain:
-                model_fit = tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF=False, runGBRT=False, runGBRT2=True)
+                model_fit = tree_model_fast(model_name, year, pre_dir, Xt, yt, Xv, yv, runRF=False, runGBRT=False, runGBRT2=True)
             else:
                 model_fit = tree_model(Xt, yt, Xv, yv, runRF=False, runGBRT=False, runGBRT2=True)
             # Don't use pickle or joblib as that may introduces dependencies on xgboost version.
             # The canonical way to save and restore models is by load_model and save_model.
-            model_pt = gen_model_pt(model_name, year)
+            model_pt = gen_model_pt(model_name, year, pre_dir)
             model_fit.save_model(model_pt)
 
         if runNN:
@@ -410,14 +409,17 @@ def runModel(data, config, retrain, runGPU, runNN, frequency):
             save_year_res(model_name, year, cal_r2(yt, yt_hat), cal_r2(ytest, ytest_hat))
 
     if runNN:
+        model_dir = model_pt.parent
         return model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir
     else:
         return model_name, bcktst_df, container
 
 # %%
 
-def runFeatureImportance(data, config, runNN):
+def runFeatureImportance(data, config, runNN, pre_dir):
     container = {}
+
+    load_model = partial(_load_model, pre_dir=pre_dir)
 
     for year in tqdm(pd.date_range('20131231', '20200831', freq='M')):
         year = datetime.datetime.strftime(year, "%Y-%m")

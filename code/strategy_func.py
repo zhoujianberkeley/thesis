@@ -25,9 +25,9 @@ fh = logging.FileHandler('records.log')
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 # %%
-def tree_model_fast(model_name, year, Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
+def tree_model_fast(model_name, year, pre_dir, Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     assert runRF + runGBRT + runGBRT2 == 1
-    model_pt = gen_model_pt(model_name, year)
+    model_pt = gen_model_pt(model_name, year, pre_dir)
     if not os.path.exists(model_pt):
         print(f"can't find trained model {model_name} {year}, retraining")
         return tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2)

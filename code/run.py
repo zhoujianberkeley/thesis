@@ -1,4 +1,5 @@
 # %%
+import datetime
 import os
 import pandas as pd
 from pathlib import Path
@@ -9,7 +10,7 @@ import pickle
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from utils_stra import cal_model_r2
+from utils_stra import cal_model_r2, gen_filterIPO, filter_data
 from utils_stra import save_res, setwd
 from model_func import runModel
 
@@ -30,10 +31,14 @@ ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
+
 # %%
-runGPU = 1
+runGPU = 0
 retrain = 1
-runfreq = "M"
+runfreq = "Q"
+
+data = filter_data(data, ["IPO"])
+pre_dir = "Filter IPO"
 
 # train30% validation20% test50% split
 def intiConfig():
@@ -45,8 +50,8 @@ def intiConfig():
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
-                "runPCR":1,
-                "runNN1":0,
+                "runPCR":0,
+                "runNN1":1,
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
@@ -80,7 +85,7 @@ for config_key in config.keys():
     #     p_v = [str(year+1), str(year + 1)] # period of valiation
     #     p_test = [str(year + 2), str(year+2)]
     if runNN:
-        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN, runfreq)
+        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN, runfreq, pre_dir)
 
         r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
         r2is = r2v
@@ -98,7 +103,7 @@ for config_key in config.keys():
         with open(model_dir / "testing_score.pkl", "wb") as f:
             pickle.dump(d, f)
     else:
-        model_name, bcktst_df, container = runModel(data, config, retrain, runGPU, runNN, runfreq)
+        model_name, bcktst_df, container = runModel(data, config, retrain, runGPU, runNN, runfreq, pre_dir)
 
         r2is, r2is_df = cal_model_r2(container, model_name, set_type="is")
         print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))

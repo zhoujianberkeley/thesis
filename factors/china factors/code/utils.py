@@ -12,6 +12,7 @@ import tushare as ts
 ts.set_token(token)
 pro = ts.pro_api()
 
+
 def setdir_fctr():
     _paths = os.getcwd().split('/')
     if _paths[-1] == "code":
