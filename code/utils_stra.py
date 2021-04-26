@@ -96,13 +96,13 @@ def save_arrays(container, model, year, to_save, savekey):
         container[model][year][savekey] = to_save
 
 
-def save_res(model_name, r2is, r2oos, nr2is=None, nr2oos=None):
+def save_res(model_name, pre_dir, r2is, r2oos, nr2is=None, nr2oos=None):
     dir = Path("code", "model_result.csv")
     if not os.path.exists(dir):
         tmp = pd.DataFrame(columns=["r2oos"])
         tmp.index.name = "model"
         tmp.to_csv(dir, index=False)
-
+    model_name = pre_dir + " " + model_name
     res = pd.read_csv(dir, index_col=0)
     res.index.name = "model"
     res.loc[model_name, "oos r2" ] = "{0:.2%}".format(r2oos)

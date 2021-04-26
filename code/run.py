@@ -116,7 +116,7 @@ for config_key in config.keys():
     # nr2is = cal_model_r2(container, model_name, oos=False, normal=True)
     # print(f"{model_name} ISN R2: ", "{0:.3%}".format(nr2is))
 
-    save_res(model_name, r2is, r2oos, nr2is=0, nr2oos=0)
+    save_res(model_name, pre_dir, r2is, r2oos, nr2is=0, nr2oos=0)
 
     if not os.path.exists(Path('code') / model_name):
         os.mkdir(Path('code') / model_name)
