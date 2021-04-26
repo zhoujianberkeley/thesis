@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from utils_stra import split, cal_r2
 from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
 from utils_stra import add_months, gen_model_pt, _load_model, _save_model
-from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn
+from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn, train_NN_model, load_NN_model
 
 setwd()
 # create logger with 'spam_application'
@@ -277,49 +277,18 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
             model_cntn = []
             for model_num in range(5):
                 model_pt = gen_model_pt(model_name, year, pre_dir, runNN=True, model_num=model_num)
+
+                _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=model_num))
+                _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=model_num + 1))
+
+                Xt, yt = _Xt, _yt
+                Xv, yv = _Xv, _yv
+                Xtest, ytest = _Xtest, _ytest
+
                 if retrain:
-                    tf.random.set_seed(model_num)
-
-                    _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=model_num))
-                    _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=model_num+1))
-
-                    Xt, yt = _Xt, _yt
-                    Xv, yv = _Xv, _yv
-                    Xtest, ytest = _Xtest, _ytest
-
-                    model_fit = genNNmodel(Xt.shape[1], i)
-                    earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=33,
-                                                                 verbose=0, mode="min", baseline=None,
-                                                                 restore_best_weights=True)
-                    checkpoint = tf.keras.callbacks.ModelCheckpoint(model_pt, monitor='val_loss', verbose=0,
-                                                                    save_best_only=True, mode='min')
-                    cb_list = [earlystop, checkpoint]
-                    loss_fn = _loss_fn
-                    # loss_fn = tf.losses.MeanSquaredError()
-                    opt = keras.optimizers.Adam(clipvalue=0.5)
-                    if runGPU:
-                        with tf.device('/device:GPU:0'):
-                            print("running on GPU")
-                            model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
-                            # fit the keras model on the dataset
-                            model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
-                                          callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
-                    else:
-                        model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
-                        model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
-                                      callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
-                    plt.plot(model_fit.history.history['loss'], label='train')
-                    plt.plot(model_fit.history.history['val_loss'], label='validation')
-                    plt.legend()
-                    plt.show()
-
+                    model_fit = train_NN_model(Xt, yt, Xv, yv, model_pt, model_num, i, runGPU)
                 else:
-                    print("loading models")
-                    Xt, yt = _Xt, _yt
-                    _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=model_num+1))
-                    Xv, yv = _Xv, _yv
-                    Xtest, ytest = _Xtest, _ytest
-                    model_fit = tf.keras.models.load_model(model_pt, custom_objects={'_loss_fn': _loss_fn})
+                    model_fit = load_NN_model(Xt, yt, Xv, yv, model_pt, model_num, i, runGPU)
 
                 model_cntn.append(model_fit)
 

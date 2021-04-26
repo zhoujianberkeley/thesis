@@ -1,4 +1,7 @@
 import time
+
+import keras
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 from multiprocessing import cpu_count
 import numpy as np
@@ -14,7 +17,8 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LeakyReLU, BatchNormalization, Dropout
 
-from utils_stra import setwd, cal_r2, gen_model_pt
+from utils_stra import setwd, cal_r2, gen_model_pt, split
+
 setwd()
 
 # create logger with 'spam_application'
@@ -116,6 +120,45 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     tree_m = best_model
     return tree_m
 
+def load_NN_model(Xt, yt, Xv, yv, model_pt, model_num, i, runGPU):
+    if os.path.exists(model_pt):
+        print("loading models")
+        model_fit = tf.keras.models.load_model(model_pt, custom_objects={'_loss_fn': _loss_fn})
+        return model_fit
+    else:
+        print("training models")
+        return train_NN_model(Xt, yt, Xv, yv, model_pt, model_num, i, runGPU)
+
+def train_NN_model(Xt, yt, Xv, yv, model_pt, model_num, i, runGPU):
+    tf.random.set_seed(model_num)
+
+    model_fit = genNNmodel(Xt.shape[1], i)
+    earlystop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=33,
+                                                 verbose=0, mode="min", baseline=None,
+                                                 restore_best_weights=True)
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(model_pt, monitor='val_loss', verbose=0,
+                                                    save_best_only=True, mode='min')
+    cb_list = [earlystop, checkpoint]
+    loss_fn = _loss_fn
+    # loss_fn = tf.losses.MeanSquaredError()
+    opt = keras.optimizers.Adam(clipvalue=0.5)
+    if runGPU:
+        with tf.device('/device:GPU:0'):
+            print("running on GPU")
+            model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
+            # fit the keras model on the dataset
+            model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
+                          callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
+    else:
+        model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
+        model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
+                      callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
+    plt.plot(model_fit.history.history['loss'], label='train')
+    plt.plot(model_fit.history.history['val_loss'], label='validation')
+    plt.legend()
+    plt.show()
+    return  model_fit
+
 
 def genNNmodel(dim, layers_num):
     assert layers_num in range(1, 7)
@@ -189,6 +232,7 @@ def genNNmodel(dim, layers_num):
     model_fit = Sequential(
         layers_)
     return model_fit
+
 
 
 def _loss_fn(true, hat):

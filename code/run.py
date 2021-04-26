@@ -35,7 +35,7 @@ data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 # %%
 runGPU = 0
 retrain = 0
-runfreq = "Q"
+runfreq = "M"
 
 data = filter_data(data, ["IPO"])
 pre_dir = "Filter IPO"
