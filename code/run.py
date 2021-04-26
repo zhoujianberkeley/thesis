@@ -34,7 +34,7 @@ data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
 # %%
 runGPU = 0
-retrain = 1
+retrain = 0
 runfreq = "Q"
 
 data = filter_data(data, ["IPO"])
@@ -123,7 +123,7 @@ for config_key in config.keys():
     with open(Path('code') / model_name / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
-    bcktst_df.dropna().to_csv(Path('code') / model_name / "predictions.csv")
+    bcktst_df.dropna().to_csv(Path('code') / pre_dir/ model_name / "predictions.csv")
     config[config_key] = 0
 
 #%%

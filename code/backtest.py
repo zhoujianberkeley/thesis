@@ -56,14 +56,16 @@ def backtest(model_name, factor, change_df):
 
     return bt_res_slice
 # %%
+pre_dir = "Filter IPO"
+
 close_raw = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data')
 close_raw.index.names = ["ticker", "date"]
 close_raw.index = close_raw.index.set_levels(pd.to_datetime(close_raw.index.get_level_values('date')), level='date', verify_integrity=False)
 
 res = []
-for model_name in ["NN1", "NN1Q"]:
+for model_name in ["NN1 Q"]:
     # model_name = "NN1"
-    ml_fctr = pd.read_csv(Path('code') / model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
+    ml_fctr = pd.read_csv(Path('code') / pre_dir /model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')
     ml_fctr = filter_data(ml_fctr, ["IPO"])
 
