@@ -17,7 +17,7 @@ raw_data = pd.read_hdf(p, key='data')
 # data = raw_data.set_index(["ts_code", "end_date"])
 data = raw_data
 data.index = data.index.set_names(["ticker",'date'])
-data = data.rename({"monthly_return":"Y"}, axis=1)
+data = data.rename({"excess_return":"Y"}, axis=1)
 
 # change datetime format
 data = data.reset_index("date")

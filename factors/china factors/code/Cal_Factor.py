@@ -22,5 +22,8 @@ os.system('python code/loadDay.py')
 print("process macro factor")
 os.system('python code/factorMcr.py')
 
+print("process Y")
+os.system('python code/factorY.py')
+
 print("aggregate all data")
 os.system('python code/Agg_Factor.py')

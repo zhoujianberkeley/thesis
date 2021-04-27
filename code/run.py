@@ -34,7 +34,7 @@ data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
 # %%
 runGPU = 0
-retrain = 0
+retrain = 1
 runfreq = "M"
 
 data = filter_data(data, ["IPO"])
@@ -51,20 +51,19 @@ def intiConfig():
                 "runENET":0,
                 "runPLS":0,
                 "runPCR":0,
-                "runNN1":1,
+                "runNN1":0,
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
-                "runRF": 0,
+                "runRF": 1,
                 "runGBRT": 0,
                 "runGBRT2": 0
               }
     return config
 
 config = intiConfig()
-
 
 for config_key in config.keys():
     if config[config_key] == 0:
@@ -118,12 +117,13 @@ for config_key in config.keys():
 
     save_res(model_name, pre_dir, r2is, r2oos, nr2is=0, nr2oos=0)
 
-    if not os.path.exists(Path('code') / model_name):
-        os.mkdir(Path('code') / model_name)
-    with open(Path('code') / model_name / f"predictions.pkl", "wb+") as f:
+    pt = Path('code') / pre_dir/ model_name
+    if not os.path.exists(pt):
+        os.mkdirs(pt)
+    with open(pt / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
-    bcktst_df.dropna().to_csv(Path('code') / pre_dir/ model_name / "predictions.csv")
+    bcktst_df.dropna().to_csv(pt / "predictions.csv")
     config[config_key] = 0
 
 #%%
