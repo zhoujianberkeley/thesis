@@ -32,7 +32,7 @@ Monthly_Quotation_sa['monthly_return'] = Monthly_Quotation_sa.groupby(['ts_code'
 # load risk free rate
 rf = pd.read_csv(Path('_saved_factors', 'MacroFactor.csv'), index_col=0, parse_dates=['end_date'])[['RiskFreeRate']]
 rf["Mon_rfr"] = (1+rf['RiskFreeRate']/100)**(1/12)-1
-rf = rf.sort_index().shift(1)
+# rf = rf.sort_index().shift(1) # shift by 1
 Monthly_Quotation_sa = Monthly_Quotation_sa.merge(rf, how="left", left_on="end_date", right_index=True)
 
 Monthly_Quotation_sa['Mon_rfr'] = Monthly_Quotation_sa['Mon_rfr'].fillna(0)

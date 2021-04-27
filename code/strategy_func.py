@@ -75,10 +75,20 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     for p in tqdm(params):
         print(p)
         if runRF:
+            params = {
+                'colsample_bynode': 0.33,
+                'learning_rate': 1,
+                'max_depth': p['max_dep'],
+                'num_parallel_tree': 300,
+                'objective': 'reg:squarederror',
+                'subsample': 0.8,
+                'random_state': 0,
+                'tree_method': 'gpu_hist'
+            }
             tree_m = xgb.XGBRFRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
                                            min_samples_split=10, random_state=0, tree_method='gpu_hist')
-            # tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
-            #                                min_samples_split=10, random_state=0, n_jobs = cpu_count())
+            tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
+                                           min_samples_split=10, random_state=0, n_jobs = cpu_count())
             tree_m.fit(Xt, yt.reshape(-1, ))
         elif runGBRT:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],

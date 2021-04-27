@@ -45,10 +45,14 @@ def backtest(model_name, factor, change_df):
     bt_res["ls"] = bt_res["decile 10"] - bt_res["decile 1"]
     bt_res[f"{model_name} ls_return"] = (bt_res["ls"]+1).cumprod() - 1
 
-    rtrn = bt_res['ls']
-    # add risk free rate
+    # load risk free rate data
+    rf = pd.read_csv(Path('factors', 'china factors', '_saved_factors', 'MacroFactor.csv'), index_col=0, parse_dates=['end_date'])[['RiskFreeRate']]
+    rf["Mon_rfr"] = (1 + rf['RiskFreeRate'] / 100) ** (1 / 12) - 1
+    bt_res = bt_res.merge(rf, how="left", left_on="date", right_index=True)
+    bt_res['excess ls'] = bt_res['ls'] - bt_res['Mon_rfr']
 
-    print(f"sharpe ratio {model_name}", round(np.sqrt(12)*rtrn.mean()/rtrn.std(), 2))
+    print(f"0rf sharpe ratio {model_name}", round(np.sqrt(12)*bt_res['ls'].mean()/bt_res['ls'].std(), 2))
+    print(f"sharpe ratio {model_name}", round(np.sqrt(12) * bt_res['excess ls'].mean() / bt_res['excess ls'].std(), 2))
 
     bt_res_slice = bt_res[[f"{model_name} d10 rt", f"{model_name} d1 rt", f'{model_name} ls_return']]
     bt_res_slice.plot()
@@ -63,7 +67,7 @@ close_raw.index.names = ["ticker", "date"]
 close_raw.index = close_raw.index.set_levels(pd.to_datetime(close_raw.index.get_level_values('date')), level='date', verify_integrity=False)
 
 res = []
-for model_name in ["NN2 M"]:
+for model_name in ["NN1 M"]:
     # model_name = "NN1"
     ml_fctr = pd.read_csv(Path('code') / pre_dir /model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')
