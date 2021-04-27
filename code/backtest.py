@@ -67,7 +67,7 @@ close_raw.index.names = ["ticker", "date"]
 close_raw.index = close_raw.index.set_levels(pd.to_datetime(close_raw.index.get_level_values('date')), level='date', verify_integrity=False)
 
 res = []
-for model_name in ["NN1 M"]:
+for model_name in ["NN1 M E", "NN1 M", "NN2 M", "PCR M"]:
     # model_name = "NN1"
     ml_fctr = pd.read_csv(Path('code') / pre_dir /model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')

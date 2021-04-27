@@ -11,8 +11,8 @@ from tqdm import tqdm
 import datetime
 import matplotlib.pyplot as plt
 
-from utils_stra import split, cal_r2
-from utils_stra import save_arrays, save_res, save_year_res, stream, setwd
+from utils_stra import split, cal_r2, sub_months, _save_year_res
+from utils_stra import save_arrays, save_res, stream, setwd
 from utils_stra import add_months, gen_model_pt, _load_model, _save_model
 from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn, train_NN_model, load_NN_model
 
@@ -30,6 +30,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
     container = {}
 
     save_model = partial(_save_model, pre_dir=pre_dir)
+    save_year_res = partial(_save_year_res, pre_dir=pre_dir)
 
     if runNN:
         nn_valid_r2 = []
@@ -45,6 +46,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
         year = datetime.datetime.strftime(year, "%Y-%m")
 
         p_t = ['1900-01', str(year)] # period of training
+        # p_t = [sub_months(year, 48), str(year)]  # period of training
         p_v = [add_months(year, 1), add_months(year, 3)] # period of valiation
         if frequency == 'M':
             p_test = [add_months(year, 4), add_months(year, 4)]

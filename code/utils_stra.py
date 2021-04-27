@@ -1,5 +1,7 @@
 import datetime
 import os
+
+import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 import logging
@@ -74,7 +76,7 @@ def _cal_model_r2(years_dict, set_type):
         ytrues.append(ytrue)
         yhats.append(yhat)
     ytrues, yhats = np.concatenate(ytrues, axis=0), np.concatenate(yhats, axis=0)
-    df = pd.DataFrame.from_dict(years_r2, orient='index', columns=['r2']).sort_values(by='r2', ascending=True)
+    df = pd.DataFrame.from_dict(years_r2, orient='index', columns=[set_type + ' r2']).sort_values(by=set_type + ' r2', ascending=True)
     print("*****", set_type, "*****")
     print(df)
     return cal_r2(ytrues, yhats), df
@@ -111,8 +113,7 @@ def save_res(model_name, pre_dir, r2is, r2oos, nr2is=None, nr2oos=None):
     if nr2oos:  res.loc[model_name, "demean is r2"] = "{0:.2%}".format(nr2is)
     res.to_csv(dir)
 
-
-def save_year_res(model_name, year, r2is, r2oos):
+def _save_year_res(model_name, year, r2is, r2oos, pre_dir):
     dir = Path("code", "model_result_year.csv")
     if not os.path.exists(dir):
         tmp = pd.DataFrame(columns=["oos"])
@@ -122,6 +123,7 @@ def save_year_res(model_name, year, r2is, r2oos):
     res = pd.read_csv(dir, index_col=0)
     res.index.name = "model"
 
+    model_name = pre_dir + " " + model_name
     res.loc[model_name + " is", str(year) ] = "{0:.2%}".format(r2is)
     res.loc[model_name + " is", "oos"] = 0
 
@@ -181,6 +183,22 @@ def _add_one_month(orig_date):
 def add_months(orig_date, n):
     for _ in range(n):
         orig_date = _add_one_month(orig_date)
+    return orig_date
+
+def _sub_one_month(orig_date):
+    # orig_date = '2015-02'
+    # advance year and month by one month
+    new_year, new_month = list(map(int, orig_date.split('-')))
+    new_month -= 1
+    # note: in datetime.date, months go from 1 to 12
+    if new_month < 1:
+        new_year -= 1
+        new_month += 12
+    return f"{new_year}-{str(new_month).zfill(2)}"
+
+def sub_months(orig_date, n):
+    for _ in range(n):
+        orig_date = _sub_one_month(orig_date)
     return orig_date
 
 def gen_filterIPO(data, file_pt):

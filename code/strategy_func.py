@@ -85,18 +85,18 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
                 'random_state': 0,
                 'tree_method': 'gpu_hist'
             }
-            tree_m = xgb.XGBRFRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
-                                           min_samples_split=10, random_state=0, tree_method='gpu_hist')
+            # tree_m = xgb.XGBRFRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
+            #                                min_samples_split=10, random_state=0, tree_method='gpu_hist')
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
                                            min_samples_split=10, random_state=0, n_jobs = cpu_count())
             tree_m.fit(Xt, yt.reshape(-1, ))
         elif runGBRT:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
-                                      objective='reg:pseudohubererror', random_state=0, tree_method='gpu_hist')
+                                      objective='reg:pseudohubererror', random_state=0) # tree_method='gpu_hist'
 
-            tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
-                                      eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
-            print(f"gbrt best iter {tree_m.best_iteration}", "best score", "{0:.3%}".format(tree_m.best_score))
+            callbacks = [xgb.callback.EarlyStopping(rounds=0.1*p['num_trees'], save_best=True)] # early_stopping_rounds=0.2*p['num_trees'],
+            tree_m = tree_m.fit(Xt, yt.reshape(-1, ), eval_set=[(Xv, yv.reshape(-1, ))], verbose=False, callbacks=callbacks)
+            print(f"gbrt best iter {tree_m.get_booster().best_iteration}", "lowest error",tree_m.get_booster().best_score)
             # tree_m = GradientBoostingRegressor(max_depth=p['max_dep'], n_estimators=p['num_trees'],
             #                                    learning_rate=p['lr'],
             #                                    min_samples_split=10, loss=p['loss'], min_samples_leaf=10,
@@ -104,10 +104,9 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
         elif runGBRT2:
             tree_m = xgb.XGBRegressor(n_estimators=p['num_trees'], max_depth=p['max_dep'], learning_rate=p['lr'],
                                       objective='reg:squarederror', random_state=0, tree_method='gpu_hist')
-
-            tree_m.fit(Xt, yt.reshape(-1, ), early_stopping_rounds=0.1*p['num_trees'],
-                                      eval_set=[(Xv, yv.reshape(-1, ))], verbose=False)
-            print(f"gbrt best iter {tree_m.best_iteration}", "best score", "{0:.3%}".format(tree_m.best_score))
+            callbacks = [xgb.callback.EarlyStopping(rounds=0.1*p['num_trees'], save_best=True)] # early_stopping_rounds=0.2*p['num_trees'],
+            tree_m = tree_m.fit(Xt, yt.reshape(-1, ), eval_set=[(Xv, yv.reshape(-1, ))], verbose=False, callbacks=callbacks)
+            print(f"gbrt best iter {tree_m.get_booster().best_iteration}", "lowest error",tree_m.get_booster().best_score)
         else:
             raise NotImplementedError()
 
@@ -165,10 +164,10 @@ def train_NN_model(Xt, yt, Xv, yv, model_pt, model_num, i, runGPU):
         model_fit.compile(loss=loss_fn, optimizer=opt, metrics=['mse'])
         model_fit.fit(Xt, yt, epochs=1000, batch_size=2560, verbose=0,
                       callbacks=cb_list, validation_data=(Xv, yv), validation_freq=1)
-    plt.plot(model_fit.history.history['loss'], label='train')
-    plt.plot(model_fit.history.history['val_loss'], label='validation')
-    plt.legend()
-    plt.show()
+    # plt.plot(model_fit.history.history['loss'], label='train')
+    # plt.plot(model_fit.history.history['val_loss'], label='validation')
+    # plt.legend()
+    # plt.show()
     return  model_fit
 
 

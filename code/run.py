@@ -57,8 +57,8 @@ def intiConfig():
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
-                "runRF": 1,
-                "runGBRT": 0,
+                "runRF": 0,
+                "runGBRT": 1,
                 "runGBRT2": 0
               }
     return config
@@ -109,6 +109,9 @@ for config_key in config.keys():
 
     r2oos, r2oos_df = cal_model_r2(container, model_name, set_type="oos")
     print(f"{model_name} R2: ", "{0:.3%}".format(r2oos))
+
+    r2oos_df.merge(r2is_df, right_index=True, left_index=True).sort_index().plot()
+    plt.show()
     # nr2oos = cal_model_r2(container, model_name, normal=True)
     # print(f"{model_name} Normal R2: ", "{0:.3%}".format(nr2oos))
 
@@ -119,7 +122,7 @@ for config_key in config.keys():
 
     pt = Path('code') / pre_dir/ model_name
     if not os.path.exists(pt):
-        os.mkdirs(pt)
+        os.makedirs(pt)
     with open(pt / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
