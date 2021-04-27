@@ -60,10 +60,10 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
         # boosting params
         num_trees = [1000]
         # learning_rate = [0.01, 0.1]
-        learning_rate = [0.3]
+        learning_rate = [0.01, 0.1, 0.3]
         # loss = ['huber']
         # cart tree params
-        max_depth = [2, 4, 6]
+        max_depth = [1, 2, 4, 6]
         param_grid = {'num_trees': num_trees,
                       'max_dep': max_depth,
                       'lr':learning_rate}
