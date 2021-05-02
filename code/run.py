@@ -31,10 +31,24 @@ ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 
+# %%
+# tmp = data.iloc[:10000, :].copy()
+tmp = data.copy()
+d = tmp.groupby('ticker').apply(lambda x: x['Y'].rolling(12).mean().shift(1))
+d.index = d.index.droplevel(0)
+
+tmp['r_mean'] = d
+tmp['r_0'] = 0
+
+tmp = tmp.dropna(subset=['r_mean'])
+a = np.mean(np.square(tmp['Y'] - tmp['r_mean']))
+b = np.mean(np.square(tmp['Y'] - tmp['r_0']))
+print(a, b)
+print(1-a/b)
 
 # %%
 runGPU = 0
-retrain = 1
+retrain = 0
 runfreq = "M"
 
 data = filter_data(data, ["IPO"])
@@ -42,10 +56,10 @@ pre_dir = "Filter IPO"
 
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":0,
-              'runOLS3+H':0,
-              'runOLS5':0,
-              'runOLS5+H': 0,
+    config = {"runOLS3":1,
+              'runOLS3+H':1,
+              'runOLS5':1,
+              'runOLS5+H': 1,
                 "runOLS":0,
                 "runOLSH":0,
                 "runENET":0,
@@ -58,7 +72,7 @@ def intiConfig():
                 "runNN5": 0,
                 "runNN6": 0,
                 "runRF": 0,
-                "runGBRT": 1,
+                "runGBRT": 0,
                 "runGBRT2": 0
               }
     return config
@@ -87,7 +101,7 @@ for config_key in config.keys():
         model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN, runfreq, pre_dir)
 
         r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
-        r2is = r2v
+        r2is, r2is_df = r2v, r2v_df
         print(f"{model_name} valid R2: ", "{0:.3%}".format(r2v))
         c = np.array(nn_valid_r2)
         d = np.array(nn_oos_r2)
@@ -117,7 +131,9 @@ for config_key in config.keys():
 
     # nr2is = cal_model_r2(container, model_name, oos=False, normal=True)
     # print(f"{model_name} ISN R2: ", "{0:.3%}".format(nr2is))
-
+    r2_df = r2oos_df.merge(r2is_df, right_index=True, left_index=True)
+    plt.scatter(r2_df[r2_df.columns[1]], r2_df[r2_df.columns[0]])
+    plt.show()
     save_res(model_name, pre_dir, r2is, r2oos, nr2is=0, nr2oos=0)
 
     pt = Path('code') / pre_dir/ model_name

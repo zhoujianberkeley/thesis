@@ -59,11 +59,10 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
         model_name = "Boosting Trees"
         # boosting params
         num_trees = [1000]
-        # learning_rate = [0.01, 0.1]
-        learning_rate = [0.01, 0.1, 0.3]
+        learning_rate = [0.01, 0.1]
         # loss = ['huber']
         # cart tree params
-        max_depth = [1, 2, 4, 6]
+        max_depth = [2, 4, 6]
         param_grid = {'num_trees': num_trees,
                       'max_dep': max_depth,
                       'lr':learning_rate}
@@ -85,8 +84,8 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
                 'random_state': 0,
                 'tree_method': 'gpu_hist'
             }
-            # tree_m = xgb.XGBRFRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
-            #                                min_samples_split=10, random_state=0, tree_method='gpu_hist')
+            # tree_m = xgb.XGBRFRegressor(n_estimators=300, max_depth=p['max_dep'], colsample_bynode=0.33
+            #                             random_state=0, tree_method='gpu_hist')
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
                                            min_samples_split=10, random_state=0, n_jobs = cpu_count()-3)
             tree_m.fit(Xt, yt.reshape(-1, ))

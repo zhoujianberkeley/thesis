@@ -8,10 +8,6 @@ import pickle
 from utils_stra import setwd, filter_data
 setwd()
 #%%
-# ml_fctr.index = ml_fctr.index.astype(str)
-# ml_fctr = ml_fctr.replace(np.inf, 10000000)
-# ml_fctr = ml_fctr.replace(-np.inf, -10000000)
-# ml_fctr = ml_fctr.sub(np.nanmean(ml_fctr, axis=1), axis=0).divide(np.nanstd(ml_fctr), axis=0)
 def decile10(date_df, rtrn_df):
     date_df = date_df.T.dropna()
     date = date_df.columns[0]
@@ -62,12 +58,12 @@ def backtest(model_name, factor, change_df):
 # %%
 pre_dir = "Filter IPO"
 
-close_raw = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data')
+close_raw = pd.read_hdf(Path('factors', 'china factors', '_saved_factors', "close.h5"), key='data').sort_index()
 close_raw.index.names = ["ticker", "date"]
 close_raw.index = close_raw.index.set_levels(pd.to_datetime(close_raw.index.get_level_values('date')), level='date', verify_integrity=False)
 
 res = []
-for model_name in ["NN1 M E", "NN1 M", "NN2 M", "PCR M"]:
+for model_name in ["NN1 M"]:
     # model_name = "NN1"
     ml_fctr = pd.read_csv(Path('code') / pre_dir /model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')
@@ -77,8 +73,6 @@ for model_name in ["NN1 M E", "NN1 M", "NN2 M", "PCR M"]:
 
     close = bt_df['close'].unstack(level=0)
     change = close.pct_change()
-
-    change = bt_df['Y'].unstack(level=0)
 
     ml_fctr = bt_df['predict'].unstack(level=0)
 
@@ -103,11 +97,5 @@ save_dir = Path("thesis")
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
 res_df.to_excel(save_dir / "backtest.xlsx")
-# %%
-# analysis = HFBacktest(close, )
-# analysis.addFactor('ml_factor', ml_fctr)
-# analysis.addFactor()
-# analysis.orthogonalizeFactors()
-# analysis.analyzeSingleFactor()
 
 #%%
