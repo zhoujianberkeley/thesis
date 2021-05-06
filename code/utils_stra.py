@@ -37,13 +37,19 @@ def split(data):
     y = data['Y'].values.reshape(-1, 1)
     return X, y
 
-def cal_r2(true, hat):
-    if len(hat.shape) == 1 and true.shape[0] == hat.shape[0]:
-        hat = hat.reshape(-1, 1)
+def cal_r2(true, hat, mean=None):
+    # if len(hat.shape) == 1 and true.shape[0] == hat.shape[0]:
+    hat = hat.reshape(-1, 1)
+    true = true.reshape(-1, 1)
     assert true.shape == hat.shape, "shape not match"
     a = np.square(true-hat).sum()
-    b = np.square(true).sum()
+    if mean is None:
+        b = np.square(true).sum()
+    else:
+        mean = mean.reshape(-1, 1)
+        b = np.square(true - mean).sum()
     return 1 - a/b
+
 
 def cal_normal_r2(true, hat):
     if len(hat.shape) == 1 and true.shape[0] == hat.shape[0]:
@@ -97,8 +103,82 @@ def save_arrays(container, model, year, to_save, savekey):
     else:
         container[model][year][savekey] = to_save
 
+    def gen_decile(df):
+        threshold = df.shape[0] // 10
+        df = df.sort_values('predict')
+        bottom = df.iloc[-threshold:, :]
+        top = df.iloc[:threshold, :]
+        return pd.concat([bottom, top])
 
-def save_res(model_name, pre_dir, r2is, r2oos, nr2is=None, nr2oos=None):
+    def cal_stat(df):
+        df = df.dropna()[['Y', 'predict']]
+        res = {}
+
+        res['rank IC'] = "{0:.3%}".format(df.dropna().groupby('date').rank().corr().loc['Y', 'predict'])
+        res['value IC'] = "{0:.3%}".format(df.corr().loc['Y', 'predict'])
+        res['r2'] = "{0:.3%}".format(cal_r2(df.Y.values, df.predict.values))
+
+        decile_df = df.groupby('date').apply(gen_decile)
+        decile_r2 = cal_r2(decile_df.Y.values, decile_df.predict.values)
+        res['r2 decile'] = "{0:.3%}".format(decile_r2)
+
+        sign_df = np.sign(df)
+        res['accuracy'] = "{0:.3%}".format((sign_df.Y == sign_df.predict).sum() / sign_df.shape[0])
+        decile_s_df = np.sign(decile_df)
+        res["accuracy decile"] = "{0:.3%}".format((decile_s_df.Y == decile_s_df.predict).sum() / decile_s_df.shape[0])
+
+        mean_df = df.copy()
+        mean_r = mean_df.groupby('ticker').apply(lambda x: x['Y'].rolling(12).mean().shift(1))
+        mean_r.index = mean_r.index.droplevel(0)
+        mean_df['mean'] = mean_r
+
+        mean_df = mean_df.dropna(subset=['mean'])
+        res['r2 mean'] = "{0:.3%}".format(cal_r2(mean_df.Y.values, mean_df.predict.values, mean = mean_df['mean'].values))
+
+        res_df = pd.DataFrame.from_dict(res, orient='index').T
+        print(res_df)
+        return res, res_df
+
+
+def gen_decile(df):
+    threshold = df.shape[0] // 10
+    df = df.sort_values('predict')
+    bottom = df.iloc[-threshold:, :]
+    top = df.iloc[:threshold, :]
+    return pd.concat([bottom, top])
+
+
+def cal_stat(df):
+    df = df.dropna()[['Y', 'predict']]
+    res = {}
+
+    res['rank IC'] = "{0:.3%}".format(df.dropna().groupby('date').rank().corr().loc['Y', 'predict'])
+    res['value IC'] = "{0:.3%}".format(df.corr().loc['Y', 'predict'])
+    res['r2'] = "{0:.3%}".format(cal_r2(df.Y.values, df.predict.values))
+
+    decile_df = df.groupby('date').apply(gen_decile)
+    decile_r2 = cal_r2(decile_df.Y.values, decile_df.predict.values)
+    res['r2 decile'] = "{0:.3%}".format(decile_r2)
+
+    sign_df = np.sign(df)
+    res['accuracy'] = "{0:.3%}".format((sign_df.Y == sign_df.predict).sum() / sign_df.shape[0])
+    decile_s_df = np.sign(decile_df)
+    res["accuracy decile"] = "{0:.3%}".format((decile_s_df.Y == decile_s_df.predict).sum() / decile_s_df.shape[0])
+
+    mean_df = df.copy()
+    mean_r = mean_df.groupby('ticker').apply(lambda x: x['Y'].rolling(12).mean().shift(1))
+    mean_r.index = mean_r.index.droplevel(0)
+    mean_df['mean'] = mean_r
+
+    mean_df = mean_df.dropna(subset=['mean'])
+    res['r2 mean'] = "{0:.3%}".format(cal_r2(mean_df.Y.values, mean_df.predict.values, mean = mean_df['mean'].values))
+
+    res_df = pd.DataFrame.from_dict(res, orient='index').T
+    print(res_df)
+    return res, res_df
+
+
+def save_res(model_name, pre_dir, stat_dict):
     dir = Path("code", "model_result.csv")
     if not os.path.exists(dir):
         tmp = pd.DataFrame(columns=["r2oos"])
@@ -107,10 +187,8 @@ def save_res(model_name, pre_dir, r2is, r2oos, nr2is=None, nr2oos=None):
     model_name = pre_dir + " " + model_name
     res = pd.read_csv(dir, index_col=0)
     res.index.name = "model"
-    res.loc[model_name, "oos r2" ] = "{0:.2%}".format(r2oos)
-    res.loc[model_name, "is r2"] = "{0:.2%}".format(r2is)
-    if nr2is:   res.loc[model_name, "demean oos r2"] = "{0:.2%}".format(nr2oos)
-    if nr2oos:  res.loc[model_name, "demean is r2"] = "{0:.2%}".format(nr2is)
+    for stat, v in stat_dict.items():
+        res.loc[model_name, stat] = v
     res.to_csv(dir)
 
 def _save_year_res(model_name, year, r2is, r2oos, pre_dir):

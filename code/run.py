@@ -11,9 +11,12 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from utils_stra import cal_model_r2, gen_filterIPO, filter_data
-from utils_stra import save_res, setwd
+from utils_stra import save_res, setwd, cal_stat
 from model_func import runModel
+from tqdm import tqdm
+from utils_stra import cal_r2
 
+tqdm.pandas()
 setwd()
 # create logger with 'spam_application'
 logger = logging.getLogger('records')
@@ -30,22 +33,6 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
-
-# %%
-# tmp = data.iloc[:10000, :].copy()
-tmp = data.copy()
-d = tmp.groupby('ticker').apply(lambda x: x['Y'].rolling(12).mean().shift(1))
-d.index = d.index.droplevel(0)
-
-tmp['r_mean'] = d
-tmp['r_0'] = 0
-
-tmp = tmp.dropna(subset=['r_mean'])
-a = np.mean(np.square(tmp['Y'] - tmp['r_mean']))
-b = np.mean(np.square(tmp['Y'] - tmp['r_0']))
-print(a, b)
-print(1-a/b)
-
 # %%
 runGPU = 0
 retrain = 0
@@ -57,9 +44,9 @@ pre_dir = "Filter IPO"
 # train30% validation20% test50% split
 def intiConfig():
     config = {"runOLS3":1,
-              'runOLS3+H':1,
-              'runOLS5':1,
-              'runOLS5+H': 1,
+              'runOLS3+H':0,
+              'runOLS5':0,
+              'runOLS5+H': 0,
                 "runOLS":0,
                 "runOLSH":0,
                 "runENET":0,
@@ -121,9 +108,10 @@ for config_key in config.keys():
         r2is, r2is_df = cal_model_r2(container, model_name, set_type="is")
         print(f"{model_name} IS R2: ", "{0:.3%}".format(r2is))
 
+    stat_dict, stat_df = cal_stat(bcktst_df)
+
     r2oos, r2oos_df = cal_model_r2(container, model_name, set_type="oos")
     print(f"{model_name} R2: ", "{0:.3%}".format(r2oos))
-
     r2oos_df.merge(r2is_df, right_index=True, left_index=True).sort_index().plot()
     plt.show()
     # nr2oos = cal_model_r2(container, model_name, normal=True)
@@ -134,7 +122,9 @@ for config_key in config.keys():
     r2_df = r2oos_df.merge(r2is_df, right_index=True, left_index=True)
     plt.scatter(r2_df[r2_df.columns[1]], r2_df[r2_df.columns[0]])
     plt.show()
-    save_res(model_name, pre_dir, r2is, r2oos, nr2is=0, nr2oos=0)
+
+    stat_dict['r2 is'] = "{0:.3%}".format(r2is)
+    save_res(model_name, pre_dir, stat_dict)
 
     pt = Path('code') / pre_dir/ model_name
     if not os.path.exists(pt):
@@ -142,14 +132,13 @@ for config_key in config.keys():
     with open(pt / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
-    bcktst_df.dropna().to_csv(pt / "predictions.csv")
-    config[config_key] = 0
 
 #%%
 # combine = np.concatenate([c.reshape(-1,1),d.reshape(-1,1)], axis=1)
 # slice = combine[combine[:,0].argsort()][:-100]
 # np.corrcoef(slice[:,0], slice[:,1])
 #%%
+
 # c = np.array(nn_valid_r2)
 # c.sort()
 # c[-len(nn_valid_r2)//10]

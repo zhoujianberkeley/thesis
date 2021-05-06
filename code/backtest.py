@@ -18,6 +18,7 @@ def decile10(date_df, rtrn_df):
     d10 = rtrn_df.T.loc[id, date].mean()
     return d10
 
+
 def decile1(date_df, rtrn_df):
     date_df = date_df.T.dropna()
     date = date_df.columns[0]
@@ -63,7 +64,7 @@ close_raw.index.names = ["ticker", "date"]
 close_raw.index = close_raw.index.set_levels(pd.to_datetime(close_raw.index.get_level_values('date')), level='date', verify_integrity=False)
 
 res = []
-for model_name in ["NN1 M"]:
+for model_name in ["NN1 M", "NN2 M E", "OLS3+H M"]:
     # model_name = "NN1"
     ml_fctr = pd.read_csv(Path('code') / pre_dir /model_name / "predictions.csv", parse_dates=["date"], infer_datetime_format=True).set_index(["ticker", "date"])
     ml_fctr = ml_fctr.dropna(how='all')

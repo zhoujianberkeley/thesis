@@ -41,16 +41,22 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
         date_range = pd.date_range('20131231', '20200831', freq='M')
     elif frequency == 'Q':
         date_range = pd.date_range('20131231', '20200630', freq='Q')
+    elif frequency == 'Y':
+        date_range = pd.date_range('20131231', '20201231', freq='Y')
 
     for year in tqdm(date_range):
         year = datetime.datetime.strftime(year, "%Y-%m")
 
         p_t = ['1900-01', str(year)] # period of training
         # p_t = [sub_months(year, 48), str(year)]  # period of training
-        p_v = [add_months(year, 1), add_months(year, 3)] # period of valiation
         if frequency == 'M':
+            p_v = [add_months(year, 1), add_months(year, 3)]  # period of valiation
             p_test = [add_months(year, 4), add_months(year, 4)]
         elif frequency == 'Q':
+            p_v = [add_months(year, 1), add_months(year, 3)]  # period of valiation
+            p_test = [add_months(year, 4), add_months(year, 6)]
+        elif frequency == 'Y':
+            p_v = [add_months(year, 1), add_months(year, 3)]  # period of valiation
             p_test = [add_months(year, 4), add_months(year, 6)]
 
         _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=0))
