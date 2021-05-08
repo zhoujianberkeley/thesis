@@ -10,11 +10,10 @@ import pickle
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from utils_stra import cal_model_r2, gen_filterIPO, filter_data
+from utils_stra import cal_r2, cal_model_r2, gen_filterIPO, filter_data
 from utils_stra import save_res, setwd, cal_stat
 from model_func import runModel
 from tqdm import tqdm
-from utils_stra import cal_r2
 
 tqdm.pandas()
 setwd()
@@ -35,34 +34,37 @@ mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 # %%
 runGPU = 0
-retrain = 0
-runfreq = "M"
+retrain = 1
+runfreq = "Y"
 
 data = filter_data(data, ["IPO"])
 pre_dir = "Filter IPO"
 
+
 # train30% validation20% test50% split
 def intiConfig():
-    config = {"runOLS3":1,
-              'runOLS3+H':0,
-              'runOLS5':0,
-              'runOLS5+H': 0,
-                "runOLS":0,
-                "runOLSH":0,
-                "runENET":0,
-                "runPLS":0,
-                "runPCR":0,
-                "runNN1":0,
-                "runNN2":0,
-                "runNN3":0,
-                "runNN4":0,
-                "runNN5": 0,
-                "runNN6": 0,
-                "runRF": 0,
-                "runGBRT": 0,
-                "runGBRT2": 0
-              }
+    config = {
+        'runOLS3': 0,
+        'runOLS3+H': 0,
+        'runOLS5': 0,
+        'runOLS5+H': 0,
+        "runOLS": 0,
+        "runOLSH": 0,
+        "runENET": 0,
+        "runPLS": 0,
+        "runPCR": 0,
+        "runNN1": 0,
+        "runNN2": 0,
+        "runNN3": 0,
+        "runNN4": 0,
+        "runNN5": 0,
+        "runNN6": 0,
+        "runRF": 0,
+        "runGBRT": 0,
+        "runGBRT2": 0
+    }
     return config
+
 
 config = intiConfig()
 
@@ -85,7 +87,8 @@ for config_key in config.keys():
     #     p_v = [str(year+1), str(year + 1)] # period of valiation
     #     p_test = [str(year + 2), str(year+2)]
     if runNN:
-        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU, runNN, runfreq, pre_dir)
+        model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU,
+                                                                                       runNN, runfreq, pre_dir)
 
         r2v, r2v_df = cal_model_r2(container, model_name, set_type="valid")
         r2is, r2is_df = r2v, r2v_df
@@ -113,6 +116,7 @@ for config_key in config.keys():
     r2oos, r2oos_df = cal_model_r2(container, model_name, set_type="oos")
     print(f"{model_name} R2: ", "{0:.3%}".format(r2oos))
     r2oos_df.merge(r2is_df, right_index=True, left_index=True).sort_index().plot()
+    plt.title(f"{model_name}")
     plt.show()
     # nr2oos = cal_model_r2(container, model_name, normal=True)
     # print(f"{model_name} Normal R2: ", "{0:.3%}".format(nr2oos))
@@ -121,26 +125,18 @@ for config_key in config.keys():
     # print(f"{model_name} ISN R2: ", "{0:.3%}".format(nr2is))
     r2_df = r2oos_df.merge(r2is_df, right_index=True, left_index=True)
     plt.scatter(r2_df[r2_df.columns[1]], r2_df[r2_df.columns[0]])
+    plt.title(f"{model_name}")
     plt.show()
 
     stat_dict['r2 is'] = "{0:.3%}".format(r2is)
     save_res(model_name, pre_dir, stat_dict)
 
-    pt = Path('code') / pre_dir/ model_name
+    pt = Path('code') / pre_dir / model_name
     if not os.path.exists(pt):
         os.makedirs(pt)
     with open(pt / f"predictions.pkl", "wb+") as f:
         pickle.dump(container[model_name], f)
 
-
-#%%
-# combine = np.concatenate([c.reshape(-1,1),d.reshape(-1,1)], axis=1)
-# slice = combine[combine[:,0].argsort()][:-100]
-# np.corrcoef(slice[:,0], slice[:,1])
-#%%
-
-# c = np.array(nn_valid_r2)
-# c.sort()
-# c[-len(nn_valid_r2)//10]
-
+    bcktst_df.dropna().to_csv(pt / "predictions.csv")
+    config[config_key] = 0
 # %%

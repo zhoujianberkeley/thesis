@@ -42,7 +42,9 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
     elif frequency == 'Q':
         date_range = pd.date_range('20131231', '20200630', freq='Q')
     elif frequency == 'Y':
-        date_range = pd.date_range('20131231', '20201231', freq='Y')
+        date_range = pd.date_range('20131231', '20181231', freq='Y')
+    else:
+        raise NotImplementedError()
 
     for year in tqdm(date_range):
         year = datetime.datetime.strftime(year, "%Y-%m")
@@ -56,8 +58,8 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
             p_v = [add_months(year, 1), add_months(year, 3)]  # period of valiation
             p_test = [add_months(year, 4), add_months(year, 6)]
         elif frequency == 'Y':
-            p_v = [add_months(year, 1), add_months(year, 3)]  # period of valiation
-            p_test = [add_months(year, 4), add_months(year, 6)]
+            p_v = [add_months(year, 1), add_months(year, 12)]  # period of valiation
+            p_test = [add_months(year, 13), add_months(year, 24)]
 
         _Xt, _yt = split(data.loc(axis=0)[:, p_t[0]:p_t[1]].sample(frac=1, random_state=0))
         _Xv, _yv = split(data.loc(axis=0)[:, p_v[0]:p_v[1]].sample(frac=1, random_state=0))
@@ -357,6 +359,7 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
             model_pt = gen_model_pt(model_name, year, pre_dir)
             model_fit.save_model(model_pt)
 
+        # predict and save
         if runNN:
             # yt_hat = np.mean(np.concatenate(nn_is_preds, axis=1), axis=1).reshape(-1, 1)
             yv_hat = np.mean(np.concatenate(nn_valid_preds, axis=1), axis=1).reshape(-1, 1)
@@ -393,35 +396,50 @@ def runModel(data, config, retrain, runGPU, runNN, frequency, pre_dir):
 
 # %%
 
-def runFeatureImportance(data, config, runNN, pre_dir):
+def runFeatureImportance(data, config, runNN, frequency, pre_dir):
     container = {}
 
     load_model = partial(_load_model, pre_dir=pre_dir)
 
-    for year in tqdm(pd.date_range('20131231', '20200831', freq='M')):
+    if frequency == 'M':
+        date_range = pd.date_range('20131231', '20200831', freq='M')
+    elif frequency == 'Q':
+        date_range = pd.date_range('20131231', '20200630', freq='Q')
+    elif frequency == 'Y':
+        date_range = pd.date_range('20131231', '20181231', freq='Y')
+    else:
+        raise NotImplementedError()
+
+    for year in date_range:
         year = datetime.datetime.strftime(year, "%Y-%m")
 
-        p_test = [add_months(year, 4), add_months(year, 4)]
+        if frequency == 'M':
+            p_test = [add_months(year, 4), add_months(year, 4)]
+        elif frequency == 'Q':
+            p_test = [add_months(year, 4), add_months(year, 6)]
+        elif frequency == 'Y':
+            p_test = [add_months(year, 13), add_months(year, 24)]
+
         _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
 
         if False:
             pass
         elif config['runOLS']:
-            model_name= "OLS"
+            model_name= "OLS" + f" {frequency}"
             Xtest, ytest = _Xtest, _ytest
             model_fit = load_model(model_name, year)
         elif config['runENET']:
-            model_name = "ENET"
+            model_name = "ENET" + f" {frequency}"
             Xtest, ytest = _Xtest, _ytest
             model_fit = load_model(model_name, year)
         elif config['runPCR']:
-            model_name = "PCR"
+            model_name = "PCR" + f" {frequency}"
             Xtest, ytest = _Xtest, _ytest
             pca = load_model("PCA", year)
             Xtest = pca.transform(Xtest)
             model_fit = load_model(model_name, year)
         elif config['runRF']:
-            model_name = "RF"
+            model_name = "RF" + f" {frequency}"
             Xtest, ytest = _Xtest, _ytest
             model_fit = tree_model_fast(model_name, year, None, None, None, None, runRF=True, runGBRT=False, runGBRT2=False)
         elif runNN:
@@ -441,7 +459,7 @@ def runFeatureImportance(data, config, runNN, pre_dir):
                 i = 5
             elif config["runNN6"]:
                 i = 6
-            model_name = f"NN{i}"
+            model_name = f"NN{i}" + f" {frequency}"
 
             nn_oos_preds = []
             for model_num in range(5):

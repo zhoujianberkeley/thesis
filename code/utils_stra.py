@@ -83,8 +83,8 @@ def _cal_model_r2(years_dict, set_type):
         yhats.append(yhat)
     ytrues, yhats = np.concatenate(ytrues, axis=0), np.concatenate(yhats, axis=0)
     df = pd.DataFrame.from_dict(years_r2, orient='index', columns=[set_type + ' r2']).sort_values(by=set_type + ' r2', ascending=True)
-    print("*****", set_type, "*****")
-    print(df)
+    # print("*****", set_type, "*****")
+    # print(df)
     return cal_r2(ytrues, yhats), df
 
 
@@ -102,42 +102,6 @@ def save_arrays(container, model, year, to_save, savekey):
         return save_arrays(container, model, year, to_save, savekey)
     else:
         container[model][year][savekey] = to_save
-
-    def gen_decile(df):
-        threshold = df.shape[0] // 10
-        df = df.sort_values('predict')
-        bottom = df.iloc[-threshold:, :]
-        top = df.iloc[:threshold, :]
-        return pd.concat([bottom, top])
-
-    def cal_stat(df):
-        df = df.dropna()[['Y', 'predict']]
-        res = {}
-
-        res['rank IC'] = "{0:.3%}".format(df.dropna().groupby('date').rank().corr().loc['Y', 'predict'])
-        res['value IC'] = "{0:.3%}".format(df.corr().loc['Y', 'predict'])
-        res['r2'] = "{0:.3%}".format(cal_r2(df.Y.values, df.predict.values))
-
-        decile_df = df.groupby('date').apply(gen_decile)
-        decile_r2 = cal_r2(decile_df.Y.values, decile_df.predict.values)
-        res['r2 decile'] = "{0:.3%}".format(decile_r2)
-
-        sign_df = np.sign(df)
-        res['accuracy'] = "{0:.3%}".format((sign_df.Y == sign_df.predict).sum() / sign_df.shape[0])
-        decile_s_df = np.sign(decile_df)
-        res["accuracy decile"] = "{0:.3%}".format((decile_s_df.Y == decile_s_df.predict).sum() / decile_s_df.shape[0])
-
-        mean_df = df.copy()
-        mean_r = mean_df.groupby('ticker').apply(lambda x: x['Y'].rolling(12).mean().shift(1))
-        mean_r.index = mean_r.index.droplevel(0)
-        mean_df['mean'] = mean_r
-
-        mean_df = mean_df.dropna(subset=['mean'])
-        res['r2 mean'] = "{0:.3%}".format(cal_r2(mean_df.Y.values, mean_df.predict.values, mean = mean_df['mean'].values))
-
-        res_df = pd.DataFrame.from_dict(res, orient='index').T
-        print(res_df)
-        return res, res_df
 
 
 def gen_decile(df):
