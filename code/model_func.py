@@ -422,9 +422,7 @@ def runFeatureImportance(data, config, runNN, frequency, pre_dir):
 
         _Xtest, _ytest = split(data.loc(axis=0)[:, p_test[0]:p_test[1]])
 
-        if False:
-            pass
-        elif config['runOLS']:
+        if config['runOLS']:
             model_name= "OLS" + f" {frequency}"
             Xtest, ytest = _Xtest, _ytest
             model_fit = load_model(model_name, year)
@@ -438,10 +436,6 @@ def runFeatureImportance(data, config, runNN, frequency, pre_dir):
             pca = load_model("PCA", year)
             Xtest = pca.transform(Xtest)
             model_fit = load_model(model_name, year)
-        elif config['runRF']:
-            model_name = "RF" + f" {frequency}"
-            Xtest, ytest = _Xtest, _ytest
-            model_fit = tree_model_fast(model_name, year, None, None, None, None, runRF=True, runGBRT=False, runGBRT2=False)
         elif runNN:
             import tensorflow as tf
             import tensorflow.keras as keras
@@ -470,6 +464,23 @@ def runFeatureImportance(data, config, runNN, frequency, pre_dir):
                 model_fit = tf.keras.models.load_model(model_pt, custom_objects={'_loss_fn': _loss_fn})
                 oos_pred = model_fit.predict(Xtest)
                 nn_oos_preds.append(oos_pred)
+        elif config['runRF']:
+            model_name = "RF" + f" {frequency}"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = tree_model_fast(model_name, year, pre_dir, None, None, None, None, runRF=True, runGBRT=False,
+                                        runGBRT2=False)
+        elif config['runGBRT']:
+            model_name = "GBRT+H" + f" {frequency}"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = tree_model_fast(model_name, year, pre_dir, None, None, None, None, runRF=False, runGBRT=True,
+                                        runGBRT2=False)
+        elif config['runGBRT2']:
+            model_name = "GBRT+l2" + f" {frequency}"
+            Xtest, ytest = _Xtest, _ytest
+            model_fit = tree_model_fast(model_name, year, pre_dir, None, None, None, None, runRF=False, runGBRT=False,
+                                        runGBRT2=True)
+        else:
+            raise NotImplementedError("Nothing to run")
 
         if runNN:
             ytest_hat = np.mean(np.concatenate(nn_oos_preds, axis=1), axis=1).reshape(-1, 1)

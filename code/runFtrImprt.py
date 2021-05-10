@@ -43,7 +43,7 @@ def initConfig():
                 "runENET":0,
                 "runPLS":0,
                 "runPCR":0,
-                "runNN1":1,
+                "runNN1":0,
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
@@ -51,7 +51,7 @@ def initConfig():
                 "runNN6": 0,
                 "runRF": 0,
                 "runGBRT": 0,
-                "runGBRT2": 0
+                "runGBRT2": 1
               }
     return config
 
