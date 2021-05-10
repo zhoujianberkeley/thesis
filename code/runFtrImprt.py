@@ -8,7 +8,7 @@ import numpy as np
 import re
 from tqdm import tqdm
 
-from utils_stra import cal_model_r2, setwd
+from utils_stra import cal_model_r2, setwd, filter_data
 from model_func import runModel, runFeatureImportance
 
 setwd()
@@ -27,10 +27,13 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
-
+data = filter_data(data, ["IPO"])
 #%%
 runGPU = 0
 retrain = 0
+runfreq = "Y"
+pre_dir = "Filter IPO"
+
 
 # train30% validation20% test50% split
 def initConfig():
@@ -44,14 +47,14 @@ def initConfig():
                 "runPLS":0,
                 "runPCR":0,
                 "runNN1":0,
-                "runNN2":0,
+                "runNN2":1,
                 "runNN3":0,
                 "runNN4":0,
                 "runNN5": 0,
                 "runNN6": 0,
                 "runRF": 0,
                 "runGBRT": 0,
-                "runGBRT2": 1
+                "runGBRT2": 0
               }
     return config
 
@@ -83,15 +86,12 @@ def cal_importance(data, config, frequency, pre_dir, method):
         res = res.append({"factor":fctr, "r2":r2oos}, ignore_index=True)
     return res, model_name
 
-pre_dir = "Filter IPO"
-frequency = "Y"
-
 for config_key in config.keys():
     if config[config_key] == 0:
         continue
     print(f"running feature importance for {config_key}")
 
-    ftr_imp, model_name = cal_importance(data, config, frequency, pre_dir, method='zero')
+    ftr_imp, model_name = cal_importance(data, config, runfreq, pre_dir, method='zero')
     ftr_imp = ftr_imp.set_index('factor')
     ftr_imp['r2 reduction'] = ftr_imp.loc["all factor", "r2"] - ftr_imp["r2"]
     ftr_imp['r2 reduct max'] = np.maximum(ftr_imp['r2 reduction'], 0)

@@ -10,9 +10,9 @@ import pickle
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from utils_stra import cal_r2, cal_model_r2, gen_filterIPO, filter_data
+from utils_stra import cal_r2, cal_model_r2, filter_data
 from utils_stra import save_res, setwd, cal_stat
-from model_func import runModel
+from model_func import runModel, runFeatureImportance
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -32,14 +32,12 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
+data = filter_data(data, ["IPO"])
 # %%
 runGPU = 0
 retrain = 1
 runfreq = "Y"
-
-data = filter_data(data, ["IPO"])
 pre_dir = "Filter IPO"
-
 
 # train30% validation20% test50% split
 def intiConfig():
