@@ -463,7 +463,7 @@ def runFeatureImportance(data, config, runNN, frequency, pre_dir):
 
             nn_oos_preds = []
             for model_num in range(5):
-                model_dir = Path("code", f"{model_name}")
+                model_dir = Path("code", pre_dir, f"{model_name}")
                 model_pt = model_dir / f"{year}_iter{model_num}_bm.hdf5"
 
                 Xtest, ytest = _Xtest, _ytest

@@ -59,7 +59,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
         model_name = "Boosting Trees"
         # boosting params
         num_trees = [1000]
-        learning_rate = [0.01, 0.1]
+        learning_rate = [0.01, 0.1, 0.3]
         # loss = ['huber']
         # cart tree params
         max_depth = [2, 4, 6]
@@ -74,16 +74,16 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     for p in tqdm(params):
         print(p)
         if runRF:
-            params = {
-                'colsample_bynode': 0.33,
-                'learning_rate': 1,
-                'max_depth': p['max_dep'],
-                'num_parallel_tree': 300,
-                'objective': 'reg:squarederror',
-                'subsample': 0.8,
-                'random_state': 0,
-                'tree_method': 'gpu_hist'
-            }
+            # params = {
+            #     'colsample_bynode': 0.33,
+            #     'learning_rate': 1,
+            #     'max_depth': p['max_dep'],
+            #     'num_parallel_tree': 300,
+            #     'objective': 'reg:squarederror',
+            #     'subsample': 0.8,
+            #     'random_state': 0,
+            #     'tree_method': 'gpu_hist'
+            # }
             # tree_m = xgb.XGBRFRegressor(n_estimators=300, max_depth=p['max_dep'], colsample_bynode=0.33
             #                             random_state=0, tree_method='gpu_hist')
             tree_m = RandomForestRegressor(n_estimators=300, max_depth=p['max_dep'], max_features=p['max_fea'],
@@ -120,13 +120,6 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     best_p = params[np.argmax(scores)]
     best_model = model_list[np.argmax(scores)]
     logger.info('best params for rf: ' + str(best_p))
-    # if runRF:
-    #     tree_m = RandomForestRegressor(n_estimators=300, max_depth=best_p['max_dep'], max_features=best_p['max_fea'],
-    #                                    min_samples_split=10, random_state=0, n_jobs=-1)
-    # elif runGBRT:
-    #     tree_m = xgb.XGBRegressor(n_estimators=best_p['num_trees'], max_depth=best_p['max_dep'], learning_rate=best_p['lr'],
-    #                               objective='reg:pseudohubererror', random_state=0, n_jobs=-1)
-    # tree_m.fit(Xt, yt.reshape(-1, ))
     tree_m = best_model
     return tree_m
 

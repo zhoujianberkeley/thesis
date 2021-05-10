@@ -12,11 +12,11 @@ from utils_stra import setwd, filter_data, cal_r2
 
 setwd()
 
-def connect_jq():
-    jq.auth('13670286853', 'xiaojianbao1996')
+def connect_jq(id, pw):
+    jq.auth(id, pw)
     print(jq.get_query_count())
 
-connect_jq()
+connect_jq('13670286853', 'xiaojianbao1996')
 # %%
 def load_weight(index_name, reload=False):
     save_dir = Path('data') / 'buffer' / f"{index_name}_weight.pkl"

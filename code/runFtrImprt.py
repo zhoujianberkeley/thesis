@@ -38,12 +38,12 @@ def initConfig():
               'runOLS3+H':0,
               'runOLS5':0,
               'runOLS5+H': 0,
-                "runOLS":1,
+                "runOLS":0,
                 "runOLSH":0,
                 "runENET":0,
                 "runPLS":0,
                 "runPCR":0,
-                "runNN1":0,
+                "runNN1":1,
                 "runNN2":0,
                 "runNN3":0,
                 "runNN4":0,
@@ -97,6 +97,6 @@ for config_key in config.keys():
     ftr_imp['r2 reduct max'] = np.maximum(ftr_imp['r2 reduction'], 0)
     ftr_imp['r2 reduction pct'] = ftr_imp['r2 reduction']/ftr_imp['r2 reduct max'].sum()
     ftr_imp = ftr_imp.sort_values(by='r2 reduction pct', ascending=False)
-    ftr_imp.to_csv(Path("code", f"{model_name}")/f"feature_importance_{model_name}.csv")
+    ftr_imp.to_csv(Path("code", pre_dir ,f"{model_name}")/f"feature_importance_{model_name}.csv")
     print(ftr_imp)
     config[config_key] = 0

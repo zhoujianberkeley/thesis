@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 tqdm.pandas()
 setwd()
-# create logger with 'spam_application'
+# create logger
 logger = logging.getLogger('records')
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
@@ -81,11 +81,6 @@ for config_key in config.keys():
             raise SystemError('GPU device not found')
         print('Found GPU at: {}'.format(device_name))
 
-    # for year in tqdm(range(2013, 2019)):
-    #     p_t = [str(1900), str(year)] # period of training
-    #     # p_t = [str(year-3), str(year)]
-    #     p_v = [str(year+1), str(year + 1)] # period of valiation
-    #     p_test = [str(year + 2), str(year+2)]
     if runNN:
         model_name, bcktst_df, container, nn_valid_r2, nn_oos_r2, model_dir = runModel(data, config, retrain, runGPU,
                                                                                        runNN, runfreq, pre_dir)
