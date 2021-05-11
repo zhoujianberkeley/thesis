@@ -48,7 +48,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
     assert runRF + runGBRT + runGBRT2 == 1
     if runRF:
         model_name = "Random Forest"
-        max_depth = np.arange(2, 9, 2)
+        max_depth = np.arange(2, 7, 2)
         max_features = [Xt.shape[1]//3]
         # max_depth = np.arange(1, 3)
         # max_features = [3, 5, 10]
@@ -59,7 +59,7 @@ def tree_model(Xt, yt, Xv, yv, runRF, runGBRT, runGBRT2):
         model_name = "Boosting Trees"
         # boosting params
         num_trees = [1000]
-        learning_rate = [0.01, 0.1, 0.3]
+        learning_rate = [0.01, 0.1]
         # loss = ['huber']
         # cart tree params
         max_depth = [2, 4, 6]
