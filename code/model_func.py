@@ -7,14 +7,15 @@ import logging
 import numpy as np
 from sklearn.linear_model import HuberRegressor, LinearRegression
 from sklearn.decomposition import PCA
+import tensorflow as tf
+
 from tqdm import tqdm
 import datetime
 import matplotlib.pyplot as plt
 
-from utils_stra import split, cal_r2, sub_months, _save_year_res
-from utils_stra import save_arrays, save_res, stream, setwd
+from utils_stra import split, cal_r2, _save_year_res, save_arrays, setwd
 from utils_stra import add_months, gen_model_pt, _load_model, _save_model
-from strategy_func import tree_model, tree_model_fast, genNNmodel, _loss_fn, train_NN_model, load_NN_model
+from strategy_func import tree_model, tree_model_fast, _loss_fn, train_NN_model, load_NN_model
 
 setwd()
 # create logger with 'spam_application'
@@ -437,9 +438,6 @@ def runFeatureImportance(data, config, runNN, frequency, pre_dir):
             Xtest = pca.transform(Xtest)
             model_fit = load_model(model_name, year)
         elif runNN:
-            import tensorflow as tf
-            import tensorflow.keras as keras
-            from strategy_func import genNNmodel, _loss_fn
 
             if config["runNN1"]:
                 i = 1

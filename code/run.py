@@ -32,21 +32,31 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
-data = filter_data(data, ["IPO"])
+# data = filter_data(data, ["IPO"])
+
+
+# code for g
+# todict = {int(i[6:8]):i for i in data.columns if i.startswith("Factor")}
+# pd.DataFrame.from_dict(todict, orient='index').sort_index().to_csv('used_factors.csv')
+
+# ml_fctr = pd.read_csv(Path('code') / "Filter IPO" / "RF Y" / "predictions.csv", parse_dates=["date"],
+#                       infer_datetime_format=True).set_index(["ticker", "date"])
+# data = data.merge(ml_fctr['predict'], how='left', left_index=True, right_index=True)
+# data.loc[:, 'predict'] = data.loc[:, 'predict'].fillna(0)
 # %%
 runGPU = 0
-retrain = 1
+retrain = 0
 runfreq = "Y"
-pre_dir = "Filter IPO"
+pre_dir = "All Stocks"
 
 # train30% validation20% test50% split
 def intiConfig():
     config = {
-        'runOLS3': 0,
+        'runOLS3': 1,
         'runOLS3+H': 0,
-        'runOLS5': 0,
-        'runOLS5+H': 0,
-        "runOLS": 0,
+        'runOLS5': 1,
+        'runOLS5+H': 1,
+        "runOLS": 1,
         "runOLSH": 0,
         "runENET": 0,
         "runPLS": 0,
