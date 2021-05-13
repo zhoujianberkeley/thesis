@@ -27,7 +27,6 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
-data = filter_data(data, ["IPO"])
 
 ml_fctr = pd.read_csv(Path('code') / "Filter IPO" / "NN1 Y" / "predictions.csv", parse_dates=["date"],
                       infer_datetime_format=True).set_index(["ticker", "date"])
@@ -40,6 +39,12 @@ retrain = 0
 runfreq = "Y"
 pre_dir = "Filter IPO"
 
+if pre_dir == "Filter IPO":
+    data = filter_data(data, ["IPO"])
+elif pre_dir == "All Stocks":
+    pass
+else:
+    raise NotImplementedError("Not recongnize")
 
 # train30% validation20% test50% split
 def initConfig():

@@ -116,7 +116,7 @@ def cal_stat(df):
     df = df.dropna()[['Y', 'predict']]
     res = {}
 
-    res['rank IC'] = "{0:.3%}".format(df.dropna().groupby('date').rank().corr().loc['Y', 'predict'])
+    res['rank IC'] = "{0:.3%}".format(df.groupby('date').rank().corr().loc['Y', 'predict'])
     res['value IC'] = "{0:.3%}".format(df.corr().loc['Y', 'predict'])
     res['r2'] = "{0:.3%}".format(cal_r2(df.Y.values, df.predict.values))
 

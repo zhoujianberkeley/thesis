@@ -32,7 +32,6 @@ data = pd.read_hdf(p, key="data")
 ind_ftr = [i for i in data.columns if i.startswith('Ind_')]
 mcr_ftr = [i for i in data.columns if i.startswith('Macro_')]
 data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
-# data = filter_data(data, ["IPO"])
 
 
 # code for g
@@ -47,20 +46,28 @@ data = data[list(data.iloc[:, :89].columns) + ind_ftr + mcr_ftr + ["Y"]]
 runGPU = 0
 retrain = 0
 runfreq = "Y"
-pre_dir = "All Stocks"
+pre_dir = "Filter IPO"
+
+
+if pre_dir == "Filter IPO":
+    data = filter_data(data, ["IPO"])
+elif pre_dir == "All Stocks":
+    pass
+else:
+    raise NotImplementedError("can't recongnize pre_dir")
 
 # train30% validation20% test50% split
 def intiConfig():
     config = {
-        'runOLS3': 1,
+        'runOLS3': 0,
         'runOLS3+H': 0,
-        'runOLS5': 1,
-        'runOLS5+H': 1,
-        "runOLS": 1,
+        'runOLS5': 0,
+        'runOLS5+H': 0,
+        "runOLS": 0,
         "runOLSH": 0,
         "runENET": 0,
         "runPLS": 0,
-        "runPCR": 0,
+        "runPCR": 1,
         "runNN1": 0,
         "runNN2": 0,
         "runNN3": 0,
